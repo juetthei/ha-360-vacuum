@@ -1,5 +1,6 @@
 .claude/
 install.sh
+history.md
 *.pyc
 __pycache__/
 .env
