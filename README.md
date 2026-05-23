@@ -114,8 +114,8 @@ If your phone and PC are on the same network:
 
 ```bash
 # On the phone: Settings → Developer Options → Wireless debugging → enable
-# Note the shown IP and port, then on your PC:
-adb connect 192.168.178.xxx:port
+# Note the IP and port shown on screen, then on your PC:
+adb connect 192.168.x.x:PORT
 adb logcat | grep MyPushMessageListener
 ```
 
@@ -159,6 +159,61 @@ Restart HA and check **Settings → System → Logs** for `GetList response`. Op
 
 ### Robot not found / wrong robot count
 The integration uses your account's device list. Make sure the robot is registered in the 360 app under the same account as your QID/SID.
+
+---
+
+## Dashboard
+
+A ready-to-use dashboard configuration is included in [`dashboard_example.yaml`](dashboard_example.yaml).
+
+It uses only **built-in HA cards** — no HACS frontend components required.
+
+### Single robot card
+
+```yaml
+type: vertical-stack
+cards:
+  - type: entity
+    entity: vacuum.your_robot_name
+    name: 360 Robot
+    icon: mdi:robot-vacuum
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: Start
+        icon: mdi:play
+        tap_action:
+          action: call-service
+          service: vacuum.start
+          target:
+            entity_id: vacuum.your_robot_name
+      - type: button
+        name: Pause
+        icon: mdi:pause
+        tap_action:
+          action: call-service
+          service: vacuum.pause
+          target:
+            entity_id: vacuum.your_robot_name
+      - type: button
+        name: Return
+        icon: mdi:home-map-marker
+        tap_action:
+          action: call-service
+          service: vacuum.return_to_base
+          target:
+            entity_id: vacuum.your_robot_name
+      - type: button
+        name: Stop
+        icon: mdi:stop
+        tap_action:
+          action: call-service
+          service: vacuum.stop
+          target:
+            entity_id: vacuum.your_robot_name
+```
+
+Replace `vacuum.your_robot_name` with your actual entity ID (find it under **Settings → Entities**, search for "360" or "vacuum"). The full two-robot panel layout is in `dashboard_example.yaml`.
 
 ---
 
