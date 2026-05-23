@@ -1,0 +1,7 @@
+{
+  "name": "360 Vacuum Robot",
+  "description": "Home Assistant integration for Qihoo 360 vacuum robots (360 AI CleanRobot S6 and similar) via the 360 Smart Home Cloud API.",
+  "render_readme": true,
+  "homeassistant": "2024.1.0",
+  "iot_class": "cloud_polling"
+}

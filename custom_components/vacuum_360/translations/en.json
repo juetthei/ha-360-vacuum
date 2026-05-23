@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "360 Vacuum Robot",
+        "description": "Extract QID and SID from the 360 app via ADB:\n`adb logcat | grep MyPushMessageListener`\n\nQID = 10-digit number, SID = 32-char hex string",
+        "data": {
+          "qid": "QID (360 Account ID)",
+          "sid": "SID (Session ID)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Renew SID",
+        "description": "The session ID has expired. Extract a new SID via ADB.",
+        "data": {
+          "sid": "New SID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connection failed – check network or server",
+      "invalid_auth": "Authentication failed – QID/SID invalid or expired",
+      "no_devices": "No devices found in account"
+    },
+    "abort": {
+      "already_configured": "This account is already configured",
+      "reauth_successful": "Authentication successfully renewed"
+    }
+  }
+}
