@@ -1,0 +1,39 @@
+clean_point:
+  name: Punkt reinigen
+  description: Startet eine gezielte Reinigung an einer Roboterkoordinate.
+  fields:
+    sn:
+      name: Seriennummer
+      description: Optional. Wenn leer, wird der erste konfigurierte 360-Sauger verwendet.
+      example: "360TY030103008172"
+      selector:
+        text:
+    x:
+      name: X
+      required: true
+      selector:
+        number:
+          mode: box
+    y:
+      name: Y
+      required: true
+      selector:
+        number:
+          mode: box
+
+clean_rooms:
+  name: Räume reinigen
+  description: Startet die 360-Raumreinigung fuer die angegebenen Raum-IDs.
+  fields:
+    sn:
+      name: Seriennummer
+      description: Optional. Wenn leer, wird der erste konfigurierte 360-Sauger verwendet.
+      example: "360TY030103008172"
+      selector:
+        text:
+    area_ids:
+      name: Raum-IDs
+      required: true
+      example: [1, 2]
+      selector:
+        object:

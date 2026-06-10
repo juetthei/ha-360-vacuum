@@ -5,7 +5,7 @@ import logging
 import math
 from datetime import timedelta
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
 from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
@@ -28,11 +28,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinators: dict[str, Robot360Coordinator] = hass.data[DOMAIN][entry.entry_id]
-    entities = []
-    for coord in coordinators.values():
-        entities.append(Robot360MapCamera(coord, "2d"))
-        entities.append(Robot360MapCamera(coord, "3d"))
-    async_add_entities(entities)
+    async_add_entities([Robot360MapCamera(coord) for coord in coordinators.values()])
 
 
 class Robot360MapCamera(Camera):
@@ -40,14 +36,11 @@ class Robot360MapCamera(Camera):
 
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator: Robot360Coordinator, mode: str) -> None:
+    def __init__(self, coordinator: Robot360Coordinator) -> None:
         super().__init__()
         self.coordinator = coordinator
-        self.mode = mode
-        self._attr_name = "3D Map" if mode == "3d" else "Map"
-        self._attr_unique_id = (
-            f"{coordinator.sn}_map_3d" if mode == "3d" else f"{coordinator.sn}_map"
-        )
+        self._attr_name = "Map"
+        self._attr_unique_id = f"{coordinator.sn}_map"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, coordinator.sn)},
             "name": coordinator.device_name,
@@ -61,6 +54,7 @@ class Robot360MapCamera(Camera):
     @property
     def extra_state_attributes(self) -> dict:
         record = self._record or {}
+        transform = _map_transform(record)
         return {
             "source": record.get("source", "record"),
             "clean_id": record.get("cleanId"),
@@ -75,7 +69,8 @@ class Robot360MapCamera(Camera):
             "rooms": len(_areas_from_record(record)),
             "objects": len(_objects_from_record(record)),
             "obstacles": record.get("obstaclesTimes", 0),
-            "render_mode": self.mode,
+            "render_mode": "2d",
+            "map_transform": transform,
         }
 
     async def async_camera_image(
@@ -98,20 +93,18 @@ class Robot360MapCamera(Camera):
             return self._image
 
         self._record = record
-        self._image = await self.hass.async_add_executor_job(_render_map, record, self.mode)
+        self._image = await self.hass.async_add_executor_job(_render_map, record)
         self._last_update = now
         self.async_write_ha_state()
         return self._image
 
 
-def _render_map(record: dict, mode: str) -> bytes:
+def _render_map(record: dict) -> bytes:
     points = _points_from_record(record)
     areas = _areas_from_record(record)
     objects = _objects_from_record(record)
     robot_pos = _robot_pos(record, points)
 
-    if mode == "3d":
-        return _png_bytes(_render_isometric(record, points, areas, objects, robot_pos))
     return _png_bytes(_render_topdown(record, points, areas, objects, robot_pos))
 
 
@@ -151,15 +144,45 @@ def _areas_from_record(record: dict) -> list[dict]:
 
 def _objects_from_record(record: dict) -> list[dict]:
     objects = []
-    for key in ("furniture", "objects", "obstacles"):
+    for key in (
+        "furniture",
+        "furnitureInfo",
+        "furnitures",
+        "objects",
+        "objectList",
+        "obstacles",
+        "obstacleList",
+        "aiObstacles",
+        "avoidObjects",
+    ):
         for item in record.get(key) or []:
-            pos = item.get("pos") or item.get("position")
+            pos = (
+                item.get("pos")
+                or item.get("position")
+                or item.get("point")
+                or item.get("center")
+                or item.get("coordinate")
+            )
             if not isinstance(pos, list) or len(pos) < 2:
+                x = item.get("x") or item.get("pointX") or item.get("centerX")
+                y = item.get("y") or item.get("pointY") or item.get("centerY")
+                if x is None or y is None:
+                    continue
+                pos = [x, y]
+            try:
+                item_pos = (float(pos[0]), float(pos[1]))
+            except (TypeError, ValueError):
                 continue
             objects.append(
                 {
-                    "pos": (float(pos[0]), float(pos[1])),
-                    "type": item.get("type") or item.get("name") or key.rstrip("s"),
+                    "pos": item_pos,
+                    "type": (
+                        item.get("type")
+                        or item.get("name")
+                        or item.get("label")
+                        or item.get("objectType")
+                        or key.rstrip("s")
+                    ),
                     "angle": item.get("angle"),
                     "scale": item.get("scale"),
                 }
@@ -252,80 +275,28 @@ def _render_topdown(
     return image
 
 
-def _render_isometric(
-    record: dict,
-    points: list[tuple[float, float]],
-    areas: list[dict],
-    objects: list[dict],
-    robot_pos: tuple[float, float] | None,
-) -> Image.Image:
+def _map_transform(record: dict) -> dict:
+    points = _points_from_record(record)
+    areas = _areas_from_record(record)
+    objects = _objects_from_record(record)
+    robot_pos = _robot_pos(record, points)
+    min_x, max_x, min_y, max_y = _bounds(points, areas, objects, robot_pos)
     canvas_w = 1100
     canvas_h = 820
-    padding = 80
-    image = Image.new("RGB", (canvas_w, canvas_h), "#f7f7f7")
-    draw = ImageDraw.Draw(image)
-
-    if not points and not areas:
-        draw.text((padding, padding), "Keine Kartendaten verfuegbar", fill="#334155")
-        return image
-
-    min_x, max_x, min_y, max_y = _bounds(points, areas, objects, robot_pos)
-    cx = (min_x + max_x) / 2
-    cy = (min_y + max_y) / 2
-
-    projected = [_iso(point, cx, cy) for point in points]
-    for area in areas:
-        projected.extend(_iso(point, cx, cy) for point in area["points"])
-    projected.extend(_iso(item["pos"], cx, cy) for item in objects)
-    if robot_pos:
-        projected.append(_iso(robot_pos, cx, cy))
-
-    min_ix = min(x for x, _ in projected)
-    max_ix = max(x for x, _ in projected)
-    min_iy = min(y for _, y in projected)
-    max_iy = max(y for _, y in projected)
-    scale = min(
-        (canvas_w - padding * 2) / max(max_ix - min_ix, 1),
-        (canvas_h - padding * 2) / max(max_iy - min_iy, 1),
-    )
-
-    def tx(point: tuple[float, float]) -> tuple[int, int]:
-        ix, iy = _iso(point, cx, cy)
-        return (
-            int(padding + (ix - min_ix) * scale),
-            int(padding + (iy - min_iy) * scale),
-        )
-
-    _draw_header(draw, record, points, "3D Live Map" if record.get("source") == "live" else "3D letzte Reinigung")
-
-    for idx, area in enumerate(areas):
-        mapped_area = [tx(point) for point in area["points"]]
-        if len(mapped_area) >= 3:
-            _draw_extruded_polygon(draw, mapped_area, "#f7f7f7")
-
-    if len(points) > 1:
-        mapped = [tx(point) for point in points]
-        floor_mask = _draw_app_style_floor(image, draw, mapped)
-        _draw_app_style_walls(draw, floor_mask)
-        _draw_marker(draw, mapped[0], "#22c55e")
-        _draw_marker(draw, mapped[-1], "#ef4444")
-
-    for item in objects:
-        x, y = tx(item["pos"])
-        _draw_object(draw, (x, y - 12), item["type"], isometric=True)
-
-    if robot_pos:
-        _draw_robot(draw, tx(robot_pos), record.get("phi"), radius=14)
-
-    _draw_stats_panel(draw, record, objects, canvas_w)
-    return image
-
-
-def _iso(point: tuple[float, float], cx: float, cy: float) -> tuple[float, float]:
-    x, y = point
-    x -= cx
-    y -= cy
-    return (x - y) * 0.72, (x + y) * 0.36
+    padding = 70
+    span_x = max(max_x - min_x, 1)
+    span_y = max(max_y - min_y, 1)
+    scale = min((canvas_w - padding * 2) / span_x, (canvas_h - padding * 2) / span_y)
+    return {
+        "image_width": canvas_w,
+        "image_height": canvas_h,
+        "padding": padding,
+        "min_x": min_x,
+        "max_x": max_x,
+        "min_y": min_y,
+        "max_y": max_y,
+        "scale": scale,
+    }
 
 
 def _draw_header(draw: ImageDraw.ImageDraw, record: dict, points: list[tuple[float, float]], title: str) -> None:
@@ -449,85 +420,6 @@ def _minutes(seconds: int | float | None) -> int | None:
         return int(round(float(seconds) / 60))
     except (TypeError, ValueError):
         return None
-
-
-def _draw_app_style_floor(
-    image: Image.Image,
-    draw: ImageDraw.ImageDraw,
-    mapped: list[tuple[int, int]],
-) -> Image.Image:
-    # App-like cleaned floor: merge the driven path into one warm surface and
-    # draw the actual cleaning route as fine white lines on top.
-    mask = Image.new("L", image.size, 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.line(mapped, fill=255, width=54, joint="curve")
-    mask = mask.filter(ImageFilter.MaxFilter(17)).filter(ImageFilter.GaussianBlur(2))
-
-    floor = Image.new("RGB", image.size, "#cfc4b6")
-    image.paste(floor, (0, 0), mask)
-
-    shadow = Image.new("L", image.size, 0)
-    shadow_draw = ImageDraw.Draw(shadow)
-    shadow_draw.line([(x, y + 18) for x, y in mapped], fill=90, width=62, joint="curve")
-    shadow = shadow.filter(ImageFilter.GaussianBlur(9))
-    shadow_layer = Image.new("RGB", image.size, "#b7aca0")
-    image.paste(shadow_layer, (0, 0), shadow)
-    image.paste(floor, (0, 0), mask)
-
-    for offset in range(-10, 12, 5):
-        draw.line([(x, y + offset) for x, y in mapped], fill="#ffffff", width=2, joint="curve")
-
-    step = max(1, len(mapped) // 120)
-    for idx in range(0, len(mapped), step):
-        x, y = mapped[idx]
-        draw.line([(x - 18, y + 10), (x + 30, y - 2)], fill="#b9ad9e", width=1)
-
-    return mask
-
-
-def _draw_app_style_walls(draw: ImageDraw.ImageDraw, floor_mask: Image.Image) -> None:
-    # Approximate the app's extruded white/grey wall blocks from the floor mask
-    # boundary. The exact wall contours require the proprietary map decoder.
-    edge = floor_mask.filter(ImageFilter.FIND_EDGES).point(lambda value: 255 if value > 12 else 0)
-    width, height = edge.size
-    pixels = edge.load()
-    columns: dict[int, tuple[int, int]] = {}
-    bucket = 10
-    for x in range(0, width, 2):
-        ys = [y for y in range(70, height - 60, 2) if pixels[x, y]]
-        if not ys:
-            continue
-        key = (x // bucket) * bucket
-        top = min(ys)
-        bottom = max(ys)
-        current = columns.get(key)
-        if current is None:
-            columns[key] = (top, bottom)
-        else:
-            columns[key] = (min(current[0], top), max(current[1], bottom))
-
-    wall_tops = []
-    for idx, (x, (top, bottom)) in enumerate(sorted(columns.items())):
-        if idx % 2:
-            continue
-        height_px = 54 if idx % 4 else 72
-        draw.line([(x, top + 8), (x, top - height_px)], fill="#d5d5d5", width=5)
-        draw.line([(x + 3, top + 6), (x + 3, top - height_px + 2)], fill="#ffffff", width=7)
-        wall_tops.append((x + 3, top - height_px + 2))
-        if idx % 5 == 0:
-            draw.line([(x, bottom - 4), (x, bottom - 34)], fill="#e0e0e0", width=4)
-
-    if len(wall_tops) > 1:
-        draw.line(wall_tops, fill="#eeeeee", width=5, joint="curve")
-
-
-def _draw_extruded_polygon(draw: ImageDraw.ImageDraw, polygon: list[tuple[int, int]], top_color: str) -> None:
-    for height, color in ((55, "#dadada"), (38, "#ededed"), (18, "#ffffff")):
-        shifted = [(x, y - height) for x, y in polygon]
-        for start, end in zip(polygon, polygon[1:] + polygon[:1]):
-            wall = [start, end, (end[0], end[1] - height), (start[0], start[1] - height)]
-            draw.polygon(wall, fill=color)
-        draw.polygon(shifted, fill=top_color, outline="#d8d8d8")
 
 
 def _png_bytes(image: Image.Image) -> bytes:

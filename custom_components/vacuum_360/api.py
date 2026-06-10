@@ -111,6 +111,12 @@ class Api360:
     async def start(self, sn: str) -> None:
         await self.send_cmd(sn, INFO_START, {"mode": "smartClean", "globalCleanTimes": 1})
 
+    async def start_point(self, sn: str, x: int, y: int) -> None:
+        await self.send_cmd(sn, INFO_START, {"mode": "givenPoint", "point": [int(x), int(y)]})
+
+    async def start_rooms(self, sn: str, area_ids: list[int]) -> None:
+        await self.send_cmd(sn, INFO_START, {"mode": "areaClean", "areaId": [int(area_id) for area_id in area_ids]})
+
     async def return_to_base(self, sn: str) -> None:
         await self.send_cmd(sn, INFO_RETURN, {"cmd": "start"})
 
