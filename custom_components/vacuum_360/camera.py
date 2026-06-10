@@ -5,7 +5,7 @@ import logging
 import math
 from datetime import timedelta
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
@@ -65,7 +65,7 @@ class Robot360MapCamera(Camera):
             "source": record.get("source", "record"),
             "clean_id": record.get("cleanId"),
             "clean_area": record.get("cleanArea") or record.get("sweep"),
-            "approx_map_area_m2": _approx_map_area(record),
+            "approx_map_area_m2": _estimated_area(record),
             "approx_cleaned_area_m2": _cleaned_area(record),
             "coverage_percent": _coverage_percent(record),
             "clean_time": record.get("cleanTime"),
@@ -262,7 +262,7 @@ def _render_isometric(
     canvas_w = 1100
     canvas_h = 820
     padding = 80
-    image = Image.new("RGB", (canvas_w, canvas_h), "#eef4ef")
+    image = Image.new("RGB", (canvas_w, canvas_h), "#f7f7f7")
     draw = ImageDraw.Draw(image)
 
     if not points and not areas:
@@ -301,14 +301,12 @@ def _render_isometric(
     for idx, area in enumerate(areas):
         mapped_area = [tx(point) for point in area["points"]]
         if len(mapped_area) >= 3:
-            base = [(x, y + 16) for x, y in mapped_area]
-            draw.polygon(base, fill="#a6b7a8")
-            draw.polygon(mapped_area, fill="#d8eadf" if idx % 2 == 0 else "#e8efd9", outline="#7f9a86")
+            _draw_extruded_polygon(draw, mapped_area, "#f7f7f7")
 
     if len(points) > 1:
         mapped = [tx(point) for point in points]
-        for offset, color, width in ((18, "#8ca698", 9), (8, "#9ec7b9", 7), (0, "#0f766e", 4)):
-            draw.line([(x, y + offset) for x, y in mapped], fill=color, width=width, joint="curve")
+        floor_mask = _draw_app_style_floor(image, draw, mapped)
+        _draw_app_style_walls(draw, floor_mask)
         _draw_marker(draw, mapped[0], "#22c55e")
         _draw_marker(draw, mapped[-1], "#ef4444")
 
@@ -332,12 +330,12 @@ def _iso(point: tuple[float, float], cx: float, cy: float) -> tuple[float, float
 
 def _draw_header(draw: ImageDraw.ImageDraw, record: dict, points: list[tuple[float, float]], title: str) -> None:
     area = _cleaned_area(record)
-    map_area = _approx_map_area(record)
+    map_area = _estimated_area(record)
     duration = record.get("cleanTime")
     source = record.get("source", "record")
     subtitle = (
-        f"Quelle: {source}  Karte ca.: {map_area or '?'} m2  "
-        f"abgefahren ca.: {area or '?'} m2  Zeit: {duration or '?'} s  Punkte: {len(points)}"
+        f"Quelle: {source}  Geschaetzte Flaeche: {map_area or '?'} m2  "
+        f"Gereinigter Bereich: {area or '?'} m2  Zeit: {_minutes(duration) or '?'} min"
     )
     draw.text((48, 22), f"Cybersauger - {title}", fill="#0f172a")
     draw.text((48, 44), subtitle, fill="#475569")
@@ -389,13 +387,14 @@ def _draw_stats_panel(draw: ImageDraw.ImageDraw, record: dict, objects: list[dic
     x = canvas_w - 300
     y = 22
     panel = [
-        f"Karte ca.: {_approx_map_area(record) or '?'} m2",
-        f"Abgefahren ca.: {_cleaned_area(record) or '?'} m2",
+        f"Geschaetzte Flaeche: {_estimated_area(record) or '?'} m2",
+        f"Gereinigter Bereich: {_cleaned_area(record) or '?'} m2",
+        f"Reinigungsdauer: {_minutes(record.get('cleanTime')) or '?'} min",
         f"Abdeckung ca.: {_coverage_percent(record) or '?'} %",
         f"Gegenstaende: {len(objects)}",
         f"Hindernisse erkannt: {record.get('obstaclesTimes', 0)}",
     ]
-    draw.rounded_rectangle([x - 16, y - 8, canvas_w - 42, y + 118], radius=12, fill="#ffffff", outline="#d7dfd4")
+    draw.rounded_rectangle([x - 16, y - 8, canvas_w - 42, y + 142], radius=12, fill="#ffffff", outline="#dedede")
     for idx, line in enumerate(panel):
         draw.text((x, y + idx * 21), line, fill="#334155")
 
@@ -408,7 +407,7 @@ def _cleaned_area(record: dict) -> int | None:
         return None
 
 
-def _approx_map_area(record: dict) -> int | None:
+def _raw_map_area(record: dict) -> int | None:
     width = record.get("width")
     height = record.get("height")
     resolution = record.get("resolution")
@@ -418,12 +417,117 @@ def _approx_map_area(record: dict) -> int | None:
         return None
 
 
+def _estimated_area(record: dict) -> int | None:
+    for key in ("estimatedArea", "allArea", "areaTotal"):
+        value = record.get(key)
+        if value:
+            try:
+                return int(round(float(value)))
+            except (TypeError, ValueError):
+                pass
+
+    # The Android app computes this from libNativeMapJNI.getArea() * 1.8.
+    # Until that ARM/Android native code is ported, use a calibrated contour
+    # heuristic from the raw map bounding area. This matches S6 records closely
+    # enough for display, but is intentionally labelled as approximate.
+    raw = _raw_map_area(record)
+    if raw is None:
+        return None
+    return int(round(raw * 0.69))
+
+
 def _coverage_percent(record: dict) -> int | None:
     cleaned = _cleaned_area(record)
-    total = _approx_map_area(record)
+    total = _estimated_area(record)
     if not cleaned or not total:
         return None
     return min(100, int(round(cleaned / total * 100)))
+
+
+def _minutes(seconds: int | float | None) -> int | None:
+    try:
+        return int(round(float(seconds) / 60))
+    except (TypeError, ValueError):
+        return None
+
+
+def _draw_app_style_floor(
+    image: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    mapped: list[tuple[int, int]],
+) -> Image.Image:
+    # App-like cleaned floor: merge the driven path into one warm surface and
+    # draw the actual cleaning route as fine white lines on top.
+    mask = Image.new("L", image.size, 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.line(mapped, fill=255, width=54, joint="curve")
+    mask = mask.filter(ImageFilter.MaxFilter(17)).filter(ImageFilter.GaussianBlur(2))
+
+    floor = Image.new("RGB", image.size, "#cfc4b6")
+    image.paste(floor, (0, 0), mask)
+
+    shadow = Image.new("L", image.size, 0)
+    shadow_draw = ImageDraw.Draw(shadow)
+    shadow_draw.line([(x, y + 18) for x, y in mapped], fill=90, width=62, joint="curve")
+    shadow = shadow.filter(ImageFilter.GaussianBlur(9))
+    shadow_layer = Image.new("RGB", image.size, "#b7aca0")
+    image.paste(shadow_layer, (0, 0), shadow)
+    image.paste(floor, (0, 0), mask)
+
+    for offset in range(-10, 12, 5):
+        draw.line([(x, y + offset) for x, y in mapped], fill="#ffffff", width=2, joint="curve")
+
+    step = max(1, len(mapped) // 120)
+    for idx in range(0, len(mapped), step):
+        x, y = mapped[idx]
+        draw.line([(x - 18, y + 10), (x + 30, y - 2)], fill="#b9ad9e", width=1)
+
+    return mask
+
+
+def _draw_app_style_walls(draw: ImageDraw.ImageDraw, floor_mask: Image.Image) -> None:
+    # Approximate the app's extruded white/grey wall blocks from the floor mask
+    # boundary. The exact wall contours require the proprietary map decoder.
+    edge = floor_mask.filter(ImageFilter.FIND_EDGES).point(lambda value: 255 if value > 12 else 0)
+    width, height = edge.size
+    pixels = edge.load()
+    columns: dict[int, tuple[int, int]] = {}
+    bucket = 10
+    for x in range(0, width, 2):
+        ys = [y for y in range(70, height - 60, 2) if pixels[x, y]]
+        if not ys:
+            continue
+        key = (x // bucket) * bucket
+        top = min(ys)
+        bottom = max(ys)
+        current = columns.get(key)
+        if current is None:
+            columns[key] = (top, bottom)
+        else:
+            columns[key] = (min(current[0], top), max(current[1], bottom))
+
+    wall_tops = []
+    for idx, (x, (top, bottom)) in enumerate(sorted(columns.items())):
+        if idx % 2:
+            continue
+        height_px = 54 if idx % 4 else 72
+        draw.line([(x, top + 8), (x, top - height_px)], fill="#d5d5d5", width=5)
+        draw.line([(x + 3, top + 6), (x + 3, top - height_px + 2)], fill="#ffffff", width=7)
+        wall_tops.append((x + 3, top - height_px + 2))
+        if idx % 5 == 0:
+            draw.line([(x, bottom - 4), (x, bottom - 34)], fill="#e0e0e0", width=4)
+
+    if len(wall_tops) > 1:
+        draw.line(wall_tops, fill="#eeeeee", width=5, joint="curve")
+
+
+def _draw_extruded_polygon(draw: ImageDraw.ImageDraw, polygon: list[tuple[int, int]], top_color: str) -> None:
+    for height, color in ((55, "#dadada"), (38, "#ededed"), (18, "#ffffff")):
+        shifted = [(x, y - height) for x, y in polygon]
+        for start, end in zip(polygon, polygon[1:] + polygon[:1]):
+            wall = [start, end, (end[0], end[1] - height), (start[0], start[1] - height)]
+            draw.polygon(wall, fill=color)
+        draw.polygon(shifted, fill=top_color, outline="#d8d8d8")
 
 
 def _png_bytes(image: Image.Image) -> bytes:
