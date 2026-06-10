@@ -33,7 +33,6 @@ BUTTONS: tuple[Robot360ButtonDescription, ...] = (
         name="Schnellkartierung starten",
         icon="mdi:map-plus",
         entity_category=EntityCategory.CONFIG,
-        support_key="quickMapping",
         press_fn=lambda coord: coord.api.quick_mapping(coord.sn),
     ),
     Robot360ButtonDescription(
