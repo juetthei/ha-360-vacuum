@@ -65,11 +65,16 @@ class Robot360MapCamera(Camera):
             "source": record.get("source", "record"),
             "clean_id": record.get("cleanId"),
             "clean_area": record.get("cleanArea") or record.get("sweep"),
+            "approx_map_area_m2": _approx_map_area(record),
+            "approx_cleaned_area_m2": _cleaned_area(record),
+            "coverage_percent": _coverage_percent(record),
             "clean_time": record.get("cleanTime"),
             "map_width": record.get("width"),
             "map_height": record.get("height"),
             "path_points": len(_points_from_record(record)),
             "rooms": len(_areas_from_record(record)),
+            "objects": len(_objects_from_record(record)),
+            "obstacles": record.get("obstaclesTimes", 0),
             "render_mode": self.mode,
         }
 
@@ -102,11 +107,12 @@ class Robot360MapCamera(Camera):
 def _render_map(record: dict, mode: str) -> bytes:
     points = _points_from_record(record)
     areas = _areas_from_record(record)
+    objects = _objects_from_record(record)
     robot_pos = _robot_pos(record, points)
 
     if mode == "3d":
-        return _png_bytes(_render_isometric(record, points, areas, robot_pos))
-    return _png_bytes(_render_topdown(record, points, areas, robot_pos))
+        return _png_bytes(_render_isometric(record, points, areas, objects, robot_pos))
+    return _png_bytes(_render_topdown(record, points, areas, objects, robot_pos))
 
 
 def _points_from_record(record: dict) -> list[tuple[float, float]]:
@@ -143,6 +149,24 @@ def _areas_from_record(record: dict) -> list[dict]:
     return areas
 
 
+def _objects_from_record(record: dict) -> list[dict]:
+    objects = []
+    for key in ("furniture", "objects", "obstacles"):
+        for item in record.get(key) or []:
+            pos = item.get("pos") or item.get("position")
+            if not isinstance(pos, list) or len(pos) < 2:
+                continue
+            objects.append(
+                {
+                    "pos": (float(pos[0]), float(pos[1])),
+                    "type": item.get("type") or item.get("name") or key.rstrip("s"),
+                    "angle": item.get("angle"),
+                    "scale": item.get("scale"),
+                }
+            )
+    return objects
+
+
 def _robot_pos(record: dict, points: list[tuple[float, float]]) -> tuple[float, float] | None:
     pos = record.get("pos")
     if isinstance(pos, list) and len(pos) >= 2:
@@ -151,11 +175,16 @@ def _robot_pos(record: dict, points: list[tuple[float, float]]) -> tuple[float, 
 
 
 def _bounds(
-    points: list[tuple[float, float]], areas: list[dict], robot_pos: tuple[float, float] | None
+    points: list[tuple[float, float]],
+    areas: list[dict],
+    objects: list[dict],
+    robot_pos: tuple[float, float] | None,
 ) -> tuple[float, float, float, float]:
     all_points = list(points)
     for area in areas:
         all_points.extend(area["points"])
+    for item in objects:
+        all_points.append(item["pos"])
     if robot_pos:
         all_points.append(robot_pos)
     if not all_points:
@@ -171,6 +200,7 @@ def _render_topdown(
     record: dict,
     points: list[tuple[float, float]],
     areas: list[dict],
+    objects: list[dict],
     robot_pos: tuple[float, float] | None,
 ) -> Image.Image:
     canvas_w = 1100
@@ -183,7 +213,7 @@ def _render_topdown(
         draw.text((padding, padding), "Keine Kartendaten verfuegbar", fill="#334155")
         return image
 
-    min_x, max_x, min_y, max_y = _bounds(points, areas, robot_pos)
+    min_x, max_x, min_y, max_y = _bounds(points, areas, objects, robot_pos)
     span_x = max(max_x - min_x, 1)
     span_y = max(max_y - min_y, 1)
     scale = min((canvas_w - padding * 2) / span_x, (canvas_h - padding * 2) / span_y)
@@ -212,9 +242,13 @@ def _render_topdown(
         _draw_marker(draw, mapped[0], "#22c55e")
         _draw_marker(draw, mapped[-1], "#ef4444")
 
+    for item in objects:
+        _draw_object(draw, tx(item["pos"]), item["type"])
+
     if robot_pos:
         _draw_robot(draw, tx(robot_pos), record.get("phi"))
 
+    _draw_stats_panel(draw, record, objects, canvas_w)
     return image
 
 
@@ -222,6 +256,7 @@ def _render_isometric(
     record: dict,
     points: list[tuple[float, float]],
     areas: list[dict],
+    objects: list[dict],
     robot_pos: tuple[float, float] | None,
 ) -> Image.Image:
     canvas_w = 1100
@@ -234,13 +269,14 @@ def _render_isometric(
         draw.text((padding, padding), "Keine Kartendaten verfuegbar", fill="#334155")
         return image
 
-    min_x, max_x, min_y, max_y = _bounds(points, areas, robot_pos)
+    min_x, max_x, min_y, max_y = _bounds(points, areas, objects, robot_pos)
     cx = (min_x + max_x) / 2
     cy = (min_y + max_y) / 2
 
     projected = [_iso(point, cx, cy) for point in points]
     for area in areas:
         projected.extend(_iso(point, cx, cy) for point in area["points"])
+    projected.extend(_iso(item["pos"], cx, cy) for item in objects)
     if robot_pos:
         projected.append(_iso(robot_pos, cx, cy))
 
@@ -276,9 +312,14 @@ def _render_isometric(
         _draw_marker(draw, mapped[0], "#22c55e")
         _draw_marker(draw, mapped[-1], "#ef4444")
 
+    for item in objects:
+        x, y = tx(item["pos"])
+        _draw_object(draw, (x, y - 12), item["type"], isometric=True)
+
     if robot_pos:
         _draw_robot(draw, tx(robot_pos), record.get("phi"), radius=14)
 
+    _draw_stats_panel(draw, record, objects, canvas_w)
     return image
 
 
@@ -290,10 +331,14 @@ def _iso(point: tuple[float, float], cx: float, cy: float) -> tuple[float, float
 
 
 def _draw_header(draw: ImageDraw.ImageDraw, record: dict, points: list[tuple[float, float]], title: str) -> None:
-    area = record.get("cleanArea") or record.get("sweep")
+    area = _cleaned_area(record)
+    map_area = _approx_map_area(record)
     duration = record.get("cleanTime")
     source = record.get("source", "record")
-    subtitle = f"Quelle: {source}  Flaeche: {area or '?'} m2  Zeit: {duration or '?'} s  Punkte: {len(points)}"
+    subtitle = (
+        f"Quelle: {source}  Karte ca.: {map_area or '?'} m2  "
+        f"abgefahren ca.: {area or '?'} m2  Zeit: {duration or '?'} s  Punkte: {len(points)}"
+    )
     draw.text((48, 22), f"Cybersauger - {title}", fill="#0f172a")
     draw.text((48, 44), subtitle, fill="#475569")
 
@@ -325,6 +370,60 @@ def _draw_robot(
     left = (x + int(math.cos(angle + 2.4) * radius), y + int(math.sin(angle + 2.4) * radius))
     right = (x + int(math.cos(angle - 2.4) * radius), y + int(math.sin(angle - 2.4) * radius))
     draw.polygon([tip, left, right], fill="#111827")
+
+
+def _draw_object(
+    draw: ImageDraw.ImageDraw,
+    point: tuple[int, int],
+    label: str,
+    isometric: bool = False,
+) -> None:
+    x, y = point
+    if isometric:
+        draw.ellipse([x - 10, y + 9, x + 10, y + 15], fill="#8a6d3b")
+    draw.rectangle([x - 9, y - 9, x + 9, y + 9], fill="#f59e0b", outline="#7c2d12", width=2)
+    draw.text((x + 12, y - 8), str(label)[:16], fill="#7c2d12")
+
+
+def _draw_stats_panel(draw: ImageDraw.ImageDraw, record: dict, objects: list[dict], canvas_w: int) -> None:
+    x = canvas_w - 300
+    y = 22
+    panel = [
+        f"Karte ca.: {_approx_map_area(record) or '?'} m2",
+        f"Abgefahren ca.: {_cleaned_area(record) or '?'} m2",
+        f"Abdeckung ca.: {_coverage_percent(record) or '?'} %",
+        f"Gegenstaende: {len(objects)}",
+        f"Hindernisse erkannt: {record.get('obstaclesTimes', 0)}",
+    ]
+    draw.rounded_rectangle([x - 16, y - 8, canvas_w - 42, y + 118], radius=12, fill="#ffffff", outline="#d7dfd4")
+    for idx, line in enumerate(panel):
+        draw.text((x, y + idx * 21), line, fill="#334155")
+
+
+def _cleaned_area(record: dict) -> int | None:
+    area = record.get("cleanArea") or record.get("sweep")
+    try:
+        return int(round(float(area)))
+    except (TypeError, ValueError):
+        return None
+
+
+def _approx_map_area(record: dict) -> int | None:
+    width = record.get("width")
+    height = record.get("height")
+    resolution = record.get("resolution")
+    try:
+        return int(round(float(width) * float(height) * (float(resolution) ** 2)))
+    except (TypeError, ValueError):
+        return None
+
+
+def _coverage_percent(record: dict) -> int | None:
+    cleaned = _cleaned_area(record)
+    total = _approx_map_area(record)
+    if not cleaned or not total:
+        return None
+    return min(100, int(round(cleaned / total * 100)))
 
 
 def _png_bytes(image: Image.Image) -> bytes:
