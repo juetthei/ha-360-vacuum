@@ -75,6 +75,8 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
             or data.get("cleanMode")
         )
         if not mode:
+            if data.get("online") in (1, "1", True):
+                return VacuumActivity.IDLE
             return None
 
         ha_state = MODE_MAP.get(str(mode), "idle")

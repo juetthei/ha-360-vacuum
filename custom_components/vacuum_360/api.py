@@ -1,8 +1,9 @@
 import json
 import logging
+import uuid
 import aiohttp
 
-from .const import API_CMD, API_DEVICES, DEV_TYPE, INFO_START, INFO_RETURN, INFO_PAUSE, INFO_STATUS
+from .const import API_BASE, API_CMD, API_DEVICES, DEV_TYPE, INFO_START, INFO_RETURN, INFO_PAUSE, INFO_STATUS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +40,19 @@ class Api360:
             "Cookie": f"q={_COOKIE_Q}; qid={self.qid}; sid={self.sid}",
         }
 
+    def _common_payload(self, payload: dict | None = None) -> dict:
+        """Match the Android app's common POST parameters."""
+        data = dict(payload or {})
+        data.setdefault("taskid", str(uuid.uuid4()))
+        data.setdefault("from", "mpc_and")
+        data.setdefault("devType", DEV_TYPE)
+        data.setdefault("channel_id", "")
+        data.setdefault("appVer", "11.0.0")
+        data.setdefault("lang", "de_DE")
+        data.setdefault("model", "Home Assistant")
+        data.setdefault("manufacturer", "Home Assistant")
+        return data
+
     def _check_errno(self, result: dict, label: str) -> None:
         errno = result.get("errno", -1)
         if errno == 0:
@@ -55,7 +69,7 @@ class Api360:
             async with self._session.post(
                 API_DEVICES,
                 headers=self._headers(),
-                data="devType=3",
+                data=self._common_payload(),
                 timeout=_TIMEOUT,
             ) as resp:
                 result = await resp.json(content_type=None)
@@ -83,7 +97,7 @@ class Api360:
             async with self._session.post(
                 API_CMD,
                 headers=self._headers(),
-                data=payload,
+                data=self._common_payload(payload),
                 timeout=_TIMEOUT,
             ) as resp:
                 result = await resp.json(content_type=None)
@@ -108,3 +122,55 @@ class Api360:
 
     async def get_status(self, sn: str) -> dict:
         return await self.send_cmd(sn, INFO_STATUS)
+
+    async def get_clean_records(self, sn: str, page_size: int = 5) -> list[dict]:
+        """Return recent cleaning records."""
+        payload = self._common_payload({"sn": sn, "lastId": "", "pageSize": str(page_size)})
+        try:
+            async with self._session.post(
+                f"{API_BASE}/clean/record/getList",
+                headers=self._headers(),
+                data=payload,
+                timeout=_TIMEOUT,
+            ) as resp:
+                result = await resp.json(content_type=None)
+        except aiohttp.ClientError as exc:
+            raise Api360Error(f"Netzwerkfehler beim Abrufen der Reinigungsdaten: {exc}") from exc
+
+        _LOGGER.debug("Record getList response: %s", result)
+        self._check_errno(result, "record/getList")
+        data = result.get("data") or {}
+        records = data.get("list") or data.get("records") or []
+        return records if isinstance(records, list) else []
+
+    async def get_clean_record(self, sn: str, clean_id: str) -> dict:
+        """Return a single cleaning record including map/path data."""
+        payload = self._common_payload({"sn": sn, "cleanId": clean_id})
+        try:
+            async with self._session.post(
+                f"{API_BASE}/clean/record/getOne",
+                headers=self._headers(),
+                data=payload,
+                timeout=_TIMEOUT,
+            ) as resp:
+                result = await resp.json(content_type=None)
+        except aiohttp.ClientError as exc:
+            raise Api360Error(f"Netzwerkfehler beim Abrufen der Karte: {exc}") from exc
+
+        _LOGGER.debug("Record getOne response keys: %s", list((result.get("data") or {}).keys()))
+        self._check_errno(result, "record/getOne")
+        data = result.get("data") or {}
+        return data.get("record") or data
+
+    async def get_latest_clean_record(self, sn: str) -> dict | None:
+        """Return the newest record that contains map/path data."""
+        for item in await self.get_clean_records(sn):
+            clean_id = item.get("cleanId")
+            if not clean_id:
+                continue
+            record = await self.get_clean_record(sn, clean_id)
+            if record.get("posArray") or record.get("map"):
+                if not record.get("cleanId"):
+                    record["cleanId"] = clean_id
+                return record
+        return None

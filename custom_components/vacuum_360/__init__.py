@@ -11,7 +11,7 @@ from .coordinator import Robot360Coordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["vacuum"]
+PLATFORMS = ["vacuum", "camera"]
 
 
 def _sn_from_device(dev: dict) -> str | None:
@@ -22,7 +22,7 @@ def _sn_from_device(dev: dict) -> str | None:
 
 
 def _name_from_device(dev: dict, sn: str) -> str:
-    for key in ("name", "devName", "deviceName", "cleanName"):
+    for key in ("name", "title", "devName", "deviceName", "cleanName"):
         if dev.get(key):
             return dev[key]
     return f"360 Robot {sn[-4:]}"
