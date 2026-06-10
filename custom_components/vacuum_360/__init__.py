@@ -14,10 +14,15 @@ from .coordinator import Robot360Coordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["vacuum", "camera"]
+PLATFORMS = ["vacuum", "camera", "sensor", "switch", "number", "button"]
 
 _SERVICE_CLEAN_POINT = "clean_point"
 _SERVICE_CLEAN_ROOMS = "clean_rooms"
+_SERVICE_EDGE_CLEAN = "edge_clean"
+_SERVICE_POINT_CLEAN = "point_clean"
+_SERVICE_QUICK_MAPPING = "quick_mapping"
+_SERVICE_RESET_CONSUMABLE = "reset_consumable"
+_SERVICE_REBOOT = "reboot"
 
 
 def _service_schema(extra: dict) -> vol.Schema:
@@ -81,9 +86,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 def _register_services(hass: HomeAssistant) -> None:
-    if hass.services.has_service(DOMAIN, _SERVICE_CLEAN_POINT):
-        return
-
     async def handle_clean_point(call) -> None:
         coord = _first_or_matching_coordinator(hass, call.data.get("sn") or None)
         await coord.api.start_point(coord.sn, call.data["x"], call.data["y"])
@@ -94,18 +96,65 @@ def _register_services(hass: HomeAssistant) -> None:
         await coord.api.start_rooms(coord.sn, call.data["area_ids"])
         await coord.async_request_refresh()
 
-    hass.services.async_register(
-        DOMAIN,
-        _SERVICE_CLEAN_POINT,
-        handle_clean_point,
-        schema=_service_schema({vol.Required("x"): vol.Coerce(int), vol.Required("y"): vol.Coerce(int)}),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        _SERVICE_CLEAN_ROOMS,
-        handle_clean_rooms,
-        schema=_service_schema({vol.Required("area_ids"): vol.All(cv.ensure_list, [vol.Coerce(int)])}),
-    )
+    async def handle_edge_clean(call) -> None:
+        coord = _first_or_matching_coordinator(hass, call.data.get("sn") or None)
+        await coord.api.edge_clean(coord.sn)
+        await coord.async_request_refresh()
+
+    async def handle_point_clean(call) -> None:
+        coord = _first_or_matching_coordinator(hass, call.data.get("sn") or None)
+        await coord.api.point_clean(coord.sn, call.data.get("count", 2), call.data.get("style", 0))
+        await coord.async_request_refresh()
+
+    async def handle_quick_mapping(call) -> None:
+        coord = _first_or_matching_coordinator(hass, call.data.get("sn") or None)
+        await coord.api.quick_mapping(coord.sn)
+        await coord.async_request_refresh()
+
+    async def handle_reset_consumable(call) -> None:
+        coord = _first_or_matching_coordinator(hass, call.data.get("sn") or None)
+        await coord.api.reset_consumable(coord.sn, call.data["material"])
+        await coord.async_request_refresh()
+
+    async def handle_reboot(call) -> None:
+        coord = _first_or_matching_coordinator(hass, call.data.get("sn") or None)
+        await coord.api.reboot(coord.sn)
+        await coord.async_request_refresh()
+
+    services = {
+        _SERVICE_CLEAN_POINT: (
+            handle_clean_point,
+            _service_schema({vol.Required("x"): vol.Coerce(int), vol.Required("y"): vol.Coerce(int)}),
+        ),
+        _SERVICE_CLEAN_ROOMS: (
+            handle_clean_rooms,
+            _service_schema({vol.Required("area_ids"): vol.All(cv.ensure_list, [vol.Coerce(int)])}),
+        ),
+        _SERVICE_EDGE_CLEAN: (
+            handle_edge_clean,
+            _service_schema({}),
+        ),
+        _SERVICE_POINT_CLEAN: (
+            handle_point_clean,
+            _service_schema({vol.Optional("count", default=2): vol.Coerce(int), vol.Optional("style", default=0): vol.Coerce(int)}),
+        ),
+        _SERVICE_QUICK_MAPPING: (
+            handle_quick_mapping,
+            _service_schema({}),
+        ),
+        _SERVICE_RESET_CONSUMABLE: (
+            handle_reset_consumable,
+            _service_schema({vol.Required("material"): vol.In(["filter", "mainBrush", "sideBrush", "sensors"])}),
+        ),
+        _SERVICE_REBOOT: (
+            handle_reboot,
+            _service_schema({}),
+        ),
+    }
+
+    for service, (handler, schema) in services.items():
+        if not hass.services.has_service(DOMAIN, service):
+            hass.services.async_register(DOMAIN, service, handler, schema=schema)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

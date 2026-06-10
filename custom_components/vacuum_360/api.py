@@ -108,6 +108,23 @@ class Api360:
         self._check_errno(result, f"cmd/{info_type}")
         return result.get("data") or {}
 
+    async def _post_api(self, path: str, payload: dict | None = None, label: str | None = None) -> dict:
+        """POST to a 360 Cloud API endpoint and return the data object."""
+        try:
+            async with self._session.post(
+                f"{API_BASE}{path}",
+                headers=self._headers(),
+                data=self._common_payload(payload),
+                timeout=_TIMEOUT,
+            ) as resp:
+                result = await resp.json(content_type=None)
+        except aiohttp.ClientError as exc:
+            raise Api360Error(f"Netzwerkfehler bei {label or path}: {exc}") from exc
+
+        _LOGGER.debug("%s response: %s", label or path, result)
+        self._check_errno(result, label or path)
+        return result.get("data") or {}
+
     async def start(self, sn: str) -> None:
         await self.send_cmd(sn, INFO_START, {"mode": "smartClean", "globalCleanTimes": 1})
 
@@ -128,6 +145,68 @@ class Api360:
 
     async def get_status(self, sn: str) -> dict:
         return await self.send_cmd(sn, INFO_STATUS)
+
+    async def get_consumables(self, sn: str) -> dict:
+        """Return consumable usage seconds for filter, brushes and sensors."""
+        return await self._post_api("/clean/dev/getC60Material", {"sn": sn}, "dev/getC60Material")
+
+    async def get_statistics(self, sn: str) -> dict:
+        """Return accumulated cleaning statistics."""
+        return await self._post_api("/clean/record/statis", {"sn": sn}, "record/statis")
+
+    async def get_recently_clean_stats(self, sn: str) -> dict:
+        """Return weekly and monthly cleaning summary values."""
+        return await self._post_api(
+            "/clean/record/recentlycleanlist",
+            {"sn": sn, "timezone": "Europe/Berlin"},
+            "record/recentlycleanlist",
+        )
+
+    async def get_material_status(self) -> dict:
+        """Return accessory metadata if available for the account."""
+        return await self._post_api("/clean/dev/getMaterialStatus", {}, "dev/getMaterialStatus")
+
+    async def reset_consumable(self, sn: str, material: str) -> None:
+        await self._post_api("/clean/dev/resetmaterial", {"sn": sn, "material": material}, "dev/resetmaterial")
+
+    async def set_led(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setledswitch", "value": 1 if enabled else 0})
+
+    async def set_volume(self, sn: str, value: int) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setVolume", "value": int(value)})
+
+    async def set_water_pump(self, sn: str, value: int) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setWaterPump", "value": int(value)})
+
+    async def reboot(self, sn: str) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "reboot", "value": 1})
+
+    async def quick_mapping(self, sn: str) -> None:
+        await self.send_cmd(sn, "21036", {"mode": "quicklyMap"})
+
+    async def edge_clean(self, sn: str) -> None:
+        await self.send_cmd(sn, INFO_START, {"mode": "edgeClean"})
+
+    async def point_clean(self, sn: str, count: int = 2, style: int = 0) -> None:
+        await self.send_cmd(sn, INFO_START, {"mode": "pointClean", "count": int(count), "style": int(style)})
+
+    async def set_auto_boost(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setAutoBoost", "value": 1 if enabled else 0})
+
+    async def set_carpet_auto_recognize(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "carpetAutoRecognize", "value": 1 if enabled else 0})
+
+    async def set_carpet_depth_clean(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setCarpetDepthClean", "value": 1 if enabled else 0})
+
+    async def set_avoid_falling_down(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setAvoidFallingDown", "value": 1 if enabled else 0})
+
+    async def set_battery_protection(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setBatteryProtection", "value": 1 if enabled else 0})
+
+    async def set_firmware_auto_update(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "autoUpdate", "value": 1 if enabled else 0, "timeZone": 2})
 
     async def get_clean_map(self, sn: str) -> dict:
         """Return live map data when the robot exposes it through cmd/send."""
