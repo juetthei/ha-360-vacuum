@@ -123,6 +123,38 @@ class Api360:
     async def get_status(self, sn: str) -> dict:
         return await self.send_cmd(sn, INFO_STATUS)
 
+    async def get_clean_map(self, sn: str) -> dict:
+        """Return live map data when the robot exposes it through cmd/send."""
+        return await self.send_cmd(sn, "20002")
+
+    async def get_clean_path(self, sn: str, start_pos: int = 0) -> dict:
+        """Return live path data when the robot exposes it through cmd/send."""
+        return await self.send_cmd(
+            sn,
+            "21011",
+            {"startPos": start_pos, "userId": "0", "mask": 0},
+        )
+
+    async def get_live_clean_snapshot(self, sn: str) -> dict | None:
+        """Return live cleaning map/path/status data, if currently available."""
+        status = await self.get_status(sn)
+        map_data = await self.get_clean_map(sn)
+        path_data = await self.get_clean_path(sn)
+
+        if not (status or map_data or path_data):
+            return None
+
+        snapshot = {**map_data, **status}
+        pos_array = path_data.get("posArray") or snapshot.get("posArray")
+        if pos_array:
+            snapshot["posArray"] = pos_array
+        elif not map_data.get("map") and not status.get("pos"):
+            return None
+
+        snapshot["source"] = "live"
+        snapshot["cleanId"] = "live"
+        return snapshot
+
     async def get_clean_records(self, sn: str, page_size: int = 5) -> list[dict]:
         """Return recent cleaning records."""
         payload = self._common_payload({"sn": sn, "lastId": "", "pageSize": str(page_size)})
