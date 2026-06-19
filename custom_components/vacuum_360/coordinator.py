@@ -1,6 +1,8 @@
 import logging
 from datetime import timedelta
 import json
+import time
+from pathlib import Path
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -11,6 +13,8 @@ from .api import Api360, Api360AuthError, Api360Error
 from .const import DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
+
+_EXTERNAL_STATUS_MAX_AGE = 10 * 60
 
 
 def _extract_status(dev: dict) -> dict:
@@ -56,6 +60,36 @@ class Robot360Coordinator(DataUpdateCoordinator[dict]):
         self._stats_cache: dict = {}
         self._recent_cache: dict = {}
         self._stats_last_update = None
+        self._external_status_file = Path(hass.config.path(".storage", f"vacuum_360_status_{sn}.json"))
+
+    def _get_external_status(self) -> dict:
+        """Read optional status captured from the Android app/push channel."""
+        try:
+            payload = json.loads(self._external_status_file.read_text(encoding="utf-8"))
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            return {}
+
+        if payload.get("sn") not in (None, self.sn):
+            return {}
+
+        updated_at = payload.get("updated_at")
+        try:
+            age = time.time() - float(updated_at)
+        except (TypeError, ValueError):
+            return {}
+
+        if age < 0 or age > _EXTERNAL_STATUS_MAX_AGE:
+            return {}
+
+        status = payload.get("status") if isinstance(payload.get("status"), dict) else {}
+        if not status:
+            status = {key: value for key, value in payload.items() if key not in ("sn", "updated_at", "status")}
+        if not status:
+            return {}
+
+        status["external_status_source"] = payload.get("source", "external_status_cache")
+        status["external_status_age"] = round(age)
+        return status
 
     async def _async_update_data(self) -> dict:
         try:
@@ -79,6 +113,11 @@ class Robot360Coordinator(DataUpdateCoordinator[dict]):
                 dev.update(_extract_status(live_status))
         except Api360Error as exc:
             _LOGGER.debug("Live-Status fuer %s nicht verfuegbar: %s", self.sn, exc)
+
+        external_status = self._get_external_status()
+        if external_status:
+            dev["external_status"] = external_status
+            dev.update(_extract_status(external_status))
 
         try:
             dev["consumables"] = await self.api.get_consumables(self.sn)

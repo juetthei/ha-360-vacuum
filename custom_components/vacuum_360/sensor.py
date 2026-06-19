@@ -65,7 +65,7 @@ def _bool_int(data: dict, key: str) -> int | None:
 
 
 def _battery_value(data: dict) -> int | None:
-    for key in ("elec", "elecReal", "batteryUse", "battery", "batteryLevel", "power"):
+    for key in ("elecReal", "batteryUse", "elec", "battery", "batteryLevel", "power"):
         value = _as_int(data.get(key))
         if value is not None:
             return max(0, min(100, value))
@@ -74,10 +74,14 @@ def _battery_value(data: dict) -> int | None:
 
 
 def _battery_extra(data: dict) -> dict[str, Any]:
-    for key in ("elec", "elecReal", "batteryUse", "battery", "batteryLevel", "power"):
+    for key in ("elecReal", "batteryUse", "elec", "battery", "batteryLevel", "power"):
         value = _as_int(data.get(key))
         if value is not None:
-            return {"source": key, "fallback": False}
+            attrs = {"source": key, "fallback": False}
+            if data.get("external_status_source"):
+                attrs["external_status_source"] = data.get("external_status_source")
+                attrs["external_status_age"] = data.get("external_status_age")
+            return attrs
     return {
         "source": "unavailable",
         "fallback": False,
