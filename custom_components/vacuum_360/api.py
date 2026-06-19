@@ -144,7 +144,22 @@ class Api360:
         await self.send_cmd(sn, INFO_PAUSE, {"cmd": "continue"})
 
     async def get_status(self, sn: str) -> dict:
-        return await self.send_cmd(sn, INFO_STATUS)
+        status = await self.send_cmd(sn, INFO_STATUS)
+        if status:
+            return status
+
+        # The Android app requests CleanStatus through a composite command:
+        # 30000 with an embedded 20001 command. Some S6 accounts return the
+        # status only in that shape, while a plain 20001 can be empty.
+        composite = await self.send_cmd(
+            sn,
+            "30000",
+            {"cmds": [{"infoType": INFO_STATUS, "data": {}}], "mainCmds": []},
+        )
+        for cmd in composite.get("cmds") or []:
+            if cmd.get("infoType") == INFO_STATUS and isinstance(cmd.get("data"), dict):
+                return cmd["data"]
+        return {}
 
     async def get_consumables(self, sn: str) -> dict:
         """Return consumable usage seconds for filter, brushes and sensors."""

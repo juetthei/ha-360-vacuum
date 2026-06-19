@@ -73,6 +73,14 @@ class Robot360Coordinator(DataUpdateCoordinator[dict]):
         dev["support_flags"] = _parse_support_flags(dev)
 
         try:
+            live_status = await self.api.get_status(self.sn)
+            if live_status:
+                dev["live_status"] = live_status
+                dev.update(_extract_status(live_status))
+        except Api360Error as exc:
+            _LOGGER.debug("Live-Status fuer %s nicht verfuegbar: %s", self.sn, exc)
+
+        try:
             dev["consumables"] = await self.api.get_consumables(self.sn)
         except Api360Error as exc:
             _LOGGER.debug("Verbrauchsdaten fuer %s nicht verfuegbar: %s", self.sn, exc)

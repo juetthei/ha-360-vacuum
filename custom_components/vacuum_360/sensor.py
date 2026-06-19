@@ -70,14 +70,6 @@ def _battery_value(data: dict) -> int | None:
         if value is not None:
             return max(0, min(100, value))
 
-    # Older S6 cloud device lists do not include live CleanStatus.elecReal.
-    # If the app/cloud only reports the device as online without status details,
-    # keep dashboards useful by showing the safe full-charge fallback. The raw
-    # source is exposed as an attribute so this is not confused with live data.
-    if _as_int(data.get("online")) == 1:
-        mode = str(data.get("mode") or data.get("runStatus") or data.get("state") or "").lower()
-        if mode in ("", "idle", "charge", "charging", "fullcharge", "standby"):
-            return 100
     return None
 
 
@@ -87,8 +79,9 @@ def _battery_extra(data: dict) -> dict[str, Any]:
         if value is not None:
             return {"source": key, "fallback": False}
     return {
-        "source": "online_full_charge_fallback" if _battery_value(data) is not None else "unavailable",
-        "fallback": _battery_value(data) is not None,
+        "source": "unavailable",
+        "fallback": False,
+        "reason": "live_status_missing",
     }
 
 
