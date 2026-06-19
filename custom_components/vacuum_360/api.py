@@ -1,8 +1,9 @@
 import json
 import logging
+import uuid
 import aiohttp
 
-from .const import API_CMD, API_DEVICES, DEV_TYPE, INFO_START, INFO_RETURN, INFO_PAUSE, INFO_STATUS
+from .const import API_BASE, API_CMD, API_DEVICES, DEV_TYPE, INFO_START, INFO_RETURN, INFO_PAUSE, INFO_STATUS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +40,19 @@ class Api360:
             "Cookie": f"q={_COOKIE_Q}; qid={self.qid}; sid={self.sid}",
         }
 
+    def _common_payload(self, payload: dict | None = None) -> dict:
+        """Match the Android app's common POST parameters."""
+        data = dict(payload or {})
+        data.setdefault("taskid", str(uuid.uuid4()))
+        data.setdefault("from", "mpc_and")
+        data.setdefault("devType", DEV_TYPE)
+        data.setdefault("channel_id", "")
+        data.setdefault("appVer", "11.0.0")
+        data.setdefault("lang", "de_DE")
+        data.setdefault("model", "Home Assistant")
+        data.setdefault("manufacturer", "Home Assistant")
+        return data
+
     def _check_errno(self, result: dict, label: str) -> None:
         errno = result.get("errno", -1)
         if errno == 0:
@@ -55,7 +69,7 @@ class Api360:
             async with self._session.post(
                 API_DEVICES,
                 headers=self._headers(),
-                data="devType=3",
+                data=self._common_payload(),
                 timeout=_TIMEOUT,
             ) as resp:
                 result = await resp.json(content_type=None)
@@ -83,7 +97,7 @@ class Api360:
             async with self._session.post(
                 API_CMD,
                 headers=self._headers(),
-                data=payload,
+                data=self._common_payload(payload),
                 timeout=_TIMEOUT,
             ) as resp:
                 result = await resp.json(content_type=None)
@@ -94,8 +108,31 @@ class Api360:
         self._check_errno(result, f"cmd/{info_type}")
         return result.get("data") or {}
 
+    async def _post_api(self, path: str, payload: dict | None = None, label: str | None = None) -> dict:
+        """POST to a 360 Cloud API endpoint and return the data object."""
+        try:
+            async with self._session.post(
+                f"{API_BASE}{path}",
+                headers=self._headers(),
+                data=self._common_payload(payload),
+                timeout=_TIMEOUT,
+            ) as resp:
+                result = await resp.json(content_type=None)
+        except aiohttp.ClientError as exc:
+            raise Api360Error(f"Netzwerkfehler bei {label or path}: {exc}") from exc
+
+        _LOGGER.debug("%s response: %s", label or path, result)
+        self._check_errno(result, label or path)
+        return result.get("data") or {}
+
     async def start(self, sn: str) -> None:
         await self.send_cmd(sn, INFO_START, {"mode": "smartClean", "globalCleanTimes": 1})
+
+    async def start_point(self, sn: str, x: int, y: int) -> None:
+        await self.send_cmd(sn, INFO_START, {"mode": "givenPoint", "point": [int(x), int(y)]})
+
+    async def start_rooms(self, sn: str, area_ids: list[int]) -> None:
+        await self.send_cmd(sn, INFO_START, {"mode": "areaClean", "areaId": [int(area_id) for area_id in area_ids]})
 
     async def return_to_base(self, sn: str) -> None:
         await self.send_cmd(sn, INFO_RETURN, {"cmd": "start"})
@@ -107,4 +144,165 @@ class Api360:
         await self.send_cmd(sn, INFO_PAUSE, {"cmd": "continue"})
 
     async def get_status(self, sn: str) -> dict:
-        return await self.send_cmd(sn, INFO_STATUS)
+        status = await self.send_cmd(sn, INFO_STATUS)
+        if status:
+            return status
+
+        # The Android app requests CleanStatus through a composite command:
+        # 30000 with an embedded 20001 command. Some S6 accounts return the
+        # status only in that shape, while a plain 20001 can be empty.
+        composite = await self.send_cmd(
+            sn,
+            "30000",
+            {"cmds": [{"infoType": INFO_STATUS, "data": {}}], "mainCmds": []},
+        )
+        for cmd in composite.get("cmds") or []:
+            if cmd.get("infoType") == INFO_STATUS and isinstance(cmd.get("data"), dict):
+                return cmd["data"]
+        return {}
+
+    async def get_consumables(self, sn: str) -> dict:
+        """Return consumable usage seconds for filter, brushes and sensors."""
+        return await self._post_api("/clean/dev/getC60Material", {"sn": sn}, "dev/getC60Material")
+
+    async def get_statistics(self, sn: str) -> dict:
+        """Return accumulated cleaning statistics."""
+        return await self._post_api("/clean/record/statis", {"sn": sn}, "record/statis")
+
+    async def get_recently_clean_stats(self, sn: str) -> dict:
+        """Return weekly and monthly cleaning summary values."""
+        return await self._post_api(
+            "/clean/record/recentlycleanlist",
+            {"sn": sn, "timezone": "Europe/Berlin"},
+            "record/recentlycleanlist",
+        )
+
+    async def get_material_status(self) -> dict:
+        """Return accessory metadata if available for the account."""
+        return await self._post_api("/clean/dev/getMaterialStatus", {}, "dev/getMaterialStatus")
+
+    async def reset_consumable(self, sn: str, material: str) -> None:
+        await self._post_api("/clean/dev/resetmaterial", {"sn": sn, "material": material}, "dev/resetmaterial")
+
+    async def set_led(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setledswitch", "value": 1 if enabled else 0})
+
+    async def set_volume(self, sn: str, value: int) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setVolume", "value": int(value)})
+
+    async def set_water_pump(self, sn: str, value: int) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setWaterPump", "value": int(value)})
+
+    async def reboot(self, sn: str) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "reboot", "value": 1})
+
+    async def quick_mapping(self, sn: str) -> None:
+        await self.send_cmd(sn, "21036", {"mode": "quicklyMap"})
+
+    async def edge_clean(self, sn: str) -> None:
+        await self.send_cmd(sn, INFO_START, {"mode": "edgeClean"})
+
+    async def point_clean(self, sn: str, count: int = 2, style: int = 0) -> None:
+        await self.send_cmd(sn, INFO_START, {"mode": "pointClean", "count": int(count), "style": int(style)})
+
+    async def set_auto_boost(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setAutoBoost", "value": 1 if enabled else 0})
+
+    async def set_carpet_auto_recognize(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "carpetAutoRecognize", "value": 1 if enabled else 0})
+
+    async def set_carpet_depth_clean(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setCarpetDepthClean", "value": 1 if enabled else 0})
+
+    async def set_avoid_falling_down(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setAvoidFallingDown", "value": 1 if enabled else 0})
+
+    async def set_battery_protection(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "setBatteryProtection", "value": 1 if enabled else 0})
+
+    async def set_firmware_auto_update(self, sn: str, enabled: bool) -> None:
+        await self.send_cmd(sn, "21024", {"cmd": "autoUpdate", "value": 1 if enabled else 0, "timeZone": 2})
+
+    async def get_clean_map(self, sn: str) -> dict:
+        """Return live map data when the robot exposes it through cmd/send."""
+        return await self.send_cmd(sn, "20002")
+
+    async def get_clean_path(self, sn: str, start_pos: int = 0) -> dict:
+        """Return live path data when the robot exposes it through cmd/send."""
+        return await self.send_cmd(
+            sn,
+            "21011",
+            {"startPos": start_pos, "userId": "0", "mask": 0},
+        )
+
+    async def get_live_clean_snapshot(self, sn: str) -> dict | None:
+        """Return live cleaning map/path/status data, if currently available."""
+        status = await self.get_status(sn)
+        map_data = await self.get_clean_map(sn)
+        path_data = await self.get_clean_path(sn)
+
+        if not (status or map_data or path_data):
+            return None
+
+        snapshot = {**map_data, **status}
+        pos_array = path_data.get("posArray") or snapshot.get("posArray")
+        if pos_array:
+            snapshot["posArray"] = pos_array
+        elif not map_data.get("map") and not status.get("pos"):
+            return None
+
+        snapshot["source"] = "live"
+        snapshot["cleanId"] = "live"
+        return snapshot
+
+    async def get_clean_records(self, sn: str, page_size: int = 5) -> list[dict]:
+        """Return recent cleaning records."""
+        payload = self._common_payload({"sn": sn, "lastId": "", "pageSize": str(page_size)})
+        try:
+            async with self._session.post(
+                f"{API_BASE}/clean/record/getList",
+                headers=self._headers(),
+                data=payload,
+                timeout=_TIMEOUT,
+            ) as resp:
+                result = await resp.json(content_type=None)
+        except aiohttp.ClientError as exc:
+            raise Api360Error(f"Netzwerkfehler beim Abrufen der Reinigungsdaten: {exc}") from exc
+
+        _LOGGER.debug("Record getList response: %s", result)
+        self._check_errno(result, "record/getList")
+        data = result.get("data") or {}
+        records = data.get("list") or data.get("records") or []
+        return records if isinstance(records, list) else []
+
+    async def get_clean_record(self, sn: str, clean_id: str) -> dict:
+        """Return a single cleaning record including map/path data."""
+        payload = self._common_payload({"sn": sn, "cleanId": clean_id})
+        try:
+            async with self._session.post(
+                f"{API_BASE}/clean/record/getOne",
+                headers=self._headers(),
+                data=payload,
+                timeout=_TIMEOUT,
+            ) as resp:
+                result = await resp.json(content_type=None)
+        except aiohttp.ClientError as exc:
+            raise Api360Error(f"Netzwerkfehler beim Abrufen der Karte: {exc}") from exc
+
+        _LOGGER.debug("Record getOne response keys: %s", list((result.get("data") or {}).keys()))
+        self._check_errno(result, "record/getOne")
+        data = result.get("data") or {}
+        return data.get("record") or data
+
+    async def get_latest_clean_record(self, sn: str) -> dict | None:
+        """Return the newest record that contains map/path data."""
+        for item in await self.get_clean_records(sn):
+            clean_id = item.get("cleanId")
+            if not clean_id:
+                continue
+            record = await self.get_clean_record(sn, clean_id)
+            if record.get("posArray") or record.get("map"):
+                if not record.get("cleanId"):
+                    record["cleanId"] = clean_id
+                return record
+        return None

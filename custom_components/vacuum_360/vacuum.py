@@ -20,7 +20,6 @@ _FEATURES = (
     | VacuumEntityFeature.STOP
     | VacuumEntityFeature.RETURN_HOME
     | VacuumEntityFeature.PAUSE
-    | VacuumEntityFeature.BATTERY
     | VacuumEntityFeature.STATE
 )
 
@@ -75,22 +74,12 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
             or data.get("cleanMode")
         )
         if not mode:
+            if data.get("online") in (1, "1", True):
+                return VacuumActivity.IDLE
             return None
 
         ha_state = MODE_MAP.get(str(mode), "idle")
         return _ACTIVITY_MAP.get(ha_state, VacuumActivity.IDLE)
-
-    @property
-    def battery_level(self) -> int | None:
-        data = self.coordinator.data or {}
-        for key in ("elec", "battery", "batteryLevel", "power"):
-            val = data.get(key)
-            if val is not None:
-                try:
-                    return int(val)
-                except (TypeError, ValueError):
-                    pass
-        return None
 
     def _handle_coordinator_update(self) -> None:
         self._optimistic_activity = None

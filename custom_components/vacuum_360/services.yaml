@@ -1,0 +1,120 @@
+clean_point:
+  name: Punkt reinigen
+  description: Startet eine gezielte Reinigung an einer Roboterkoordinate.
+  fields:
+    sn:
+      name: Seriennummer
+      description: Optional. Wenn leer, wird der erste konfigurierte 360-Sauger verwendet.
+      example: "360TY030103008172"
+      selector:
+        text:
+    x:
+      name: X
+      required: true
+      selector:
+        number:
+          mode: box
+    y:
+      name: Y
+      required: true
+      selector:
+        number:
+          mode: box
+
+clean_rooms:
+  name: Räume reinigen
+  description: Startet die 360-Raumreinigung fuer die angegebenen Raum-IDs.
+  fields:
+    sn:
+      name: Seriennummer
+      description: Optional. Wenn leer, wird der erste konfigurierte 360-Sauger verwendet.
+      example: "360TY030103008172"
+      selector:
+        text:
+    area_ids:
+      name: Raum-IDs
+      required: true
+      example: [1, 2]
+      selector:
+        object:
+
+edge_clean:
+  name: Kantenreinigung
+  description: Startet eine Kantenreinigung.
+  fields:
+    sn:
+      name: Seriennummer
+      description: Optional. Wenn leer, wird der erste konfigurierte 360-Sauger verwendet.
+      example: "360TY030103008172"
+      selector:
+        text:
+
+point_clean:
+  name: Spot-Reinigung
+  description: Startet die native Punkt-/Spot-Reinigung des Roboters.
+  fields:
+    sn:
+      name: Seriennummer
+      description: Optional. Wenn leer, wird der erste konfigurierte 360-Sauger verwendet.
+      example: "360TY030103008172"
+      selector:
+        text:
+    count:
+      name: Durchläufe
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 3
+          mode: slider
+    style:
+      name: Stil
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 3
+          mode: slider
+
+quick_mapping:
+  name: Schnellkartierung
+  description: Startet die Schnellkartierung, sofern das Modell sie unterstützt.
+  fields:
+    sn:
+      name: Seriennummer
+      description: Optional. Wenn leer, wird der erste konfigurierte 360-Sauger verwendet.
+      example: "360TY030103008172"
+      selector:
+        text:
+
+reset_consumable:
+  name: Wartungszähler zurücksetzen
+  description: Setzt einen Verbrauchsmaterial-Zähler zurück.
+  fields:
+    sn:
+      name: Seriennummer
+      description: Optional. Wenn leer, wird der erste konfigurierte 360-Sauger verwendet.
+      example: "360TY030103008172"
+      selector:
+        text:
+    material:
+      name: Material
+      required: true
+      selector:
+        select:
+          options:
+            - "filter"
+            - "mainBrush"
+            - "sideBrush"
+            - "sensors"
+
+reboot:
+  name: Roboter neu starten
+  description: Sendet einen Reboot-Befehl an den Roboter.
+  fields:
+    sn:
+      name: Seriennummer
+      description: Optional. Wenn leer, wird der erste konfigurierte 360-Sauger verwendet.
+      example: "360TY030103008172"
+      selector:
+        text:
