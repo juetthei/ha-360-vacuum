@@ -95,3 +95,8 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   isoliert gegen simulierte Daten geprüft. Im Test waren Netzwerkverbindungen gesperrt.
 - Bei Updates ohne Roboterbewegung keine Start-/Pause-/Rückkehr-/Suchbefehle testen.
   Vor einem HA-Neustart Automationen auf mögliche Roboteraktionen prüfen.
+- Nach Installation unter HA 2025.11.1 wurden beide Batteriesensoren registriert,
+  zeigten aber `unknown`; die Registrierung allein bestätigt keinen gelieferten
+  Akkustand. Vor weiteren Batterie-Fixes die tatsächlichen Statusfelder prüfen.
+- HA kann Sensor-Entity-IDs übersetzen (z. B. Suffix `_batterie`). Die IDs aus der
+  Entity-Registry verwenden, nicht blind die englischen README-Beispiele übernehmen.
