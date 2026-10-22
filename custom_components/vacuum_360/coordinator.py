@@ -12,8 +12,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _extract_status(dev: dict) -> dict:
-    """Statusfelder aus verschiedenen möglichen API-Response-Strukturen extrahieren."""
-    # Status kann direkt im Device-Objekt oder in einem Unterfeld liegen
     for key in ("devStatus", "status", "cleanStatus", "robotStatus"):
         if key in dev and isinstance(dev[key], dict):
             return {**dev, **dev[key]}
@@ -63,5 +61,14 @@ class Robot360Coordinator(DataUpdateCoordinator[dict]):
             _LOGGER.warning("Gerät %s nicht in GetList gefunden, halte letzten Stand", self.sn)
             return self.data or {}
 
-        _LOGGER.debug("Status %s: %s", self.sn, dev)
+        # GetList liefert keine Statusfelder — separaten Status-Call machen
+        try:
+            status = await self.api.get_status(self.sn)
+            if isinstance(status, dict):
+                dev = {**dev, **status}
+                _LOGGER.debug("Status-Call %s: %s", self.sn, status)
+        except Api360Error as exc:
+            _LOGGER.debug("Status-Call %s fehlgeschlagen (ignoriert): %s", self.sn, exc)
+
+        _LOGGER.debug("Kombinierter Status %s: %s", self.sn, dev)
         return dev

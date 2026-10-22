@@ -85,3 +85,13 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 - Kompatibilitätspatch: https://github.com/juetthei/ha-360-vacuum/pull/2
 - `AGENTS.md` ist die gemeinsame Projektanleitung. `CLAUDE.md` und `GEMINI.md`
   sind Symlinks darauf. Keine Zugangsdaten committen; Push nur auf Auftrag.
+
+## Erkenntnisse beim Deployment
+
+- Vorhandene Installationen können vom GitHub-Hauptzweig abweichen. Vor Updates
+  sichern und vergleichen; zusätzliche Statusabfrage (`get_status`), Online-Fallback
+  und drei Updatezyklen für optimistische Zustände müssen erhalten bleiben.
+- Batterie-Sensor, Entity-Setup und bestehende Statusabfrage wurden mit HA 2025.11.1
+  isoliert gegen simulierte Daten geprüft. Im Test waren Netzwerkverbindungen gesperrt.
+- Bei Updates ohne Roboterbewegung keine Start-/Pause-/Rückkehr-/Suchbefehle testen.
+  Vor einem HA-Neustart Automationen auf mögliche Roboteraktionen prüfen.

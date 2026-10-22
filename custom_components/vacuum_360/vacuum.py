@@ -32,6 +32,9 @@ _ACTIVITY_MAP: dict[str, VacuumActivity] = {
     "error":     VacuumActivity.ERROR,
 }
 
+# Wie viele Coordinator-Updates der optimistische Status gehalten wird
+_OPTIMISTIC_HOLD_CYCLES = 3
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -51,6 +54,7 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
         super().__init__(coordinator)
         self._attr_unique_id = coordinator.sn
         self._optimistic_activity: VacuumActivity | None = None
+        self._optimistic_cycles_left: int = 0
 
     @property
     def device_info(self) -> dict:
@@ -58,29 +62,44 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
 
     @property
     def activity(self) -> VacuumActivity | None:
-        if self._optimistic_activity is not None:
+        # Optimistischer Status solange Zyklen übrig
+        if self._optimistic_activity is not None and self._optimistic_cycles_left > 0:
             return self._optimistic_activity
 
         data = self.coordinator.data or {}
+
+        # Echten Modus aus API-Daten lesen (falls verfügbar)
         mode = (
             data.get("mode")
             or data.get("workMode")
             or data.get("runStatus")
             or data.get("cleanMode")
         )
-        if not mode:
-            return None
+        if mode:
+            ha_state = MODE_MAP.get(str(mode), "idle")
+            return _ACTIVITY_MAP.get(ha_state, VacuumActivity.IDLE)
 
-        ha_state = MODE_MAP.get(str(mode), "idle")
-        return _ACTIVITY_MAP.get(ha_state, VacuumActivity.IDLE)
+        # Fallback: wenn online → idle statt unknown
+        if data.get("online") == 1:
+            return VacuumActivity.IDLE
+
+        return None
+
 
     def _handle_coordinator_update(self) -> None:
-        self._optimistic_activity = None
+        if self._optimistic_cycles_left > 0:
+            self._optimistic_cycles_left -= 1
+            if self._optimistic_cycles_left == 0:
+                self._optimistic_activity = None
         super()._handle_coordinator_update()
 
-    async def async_start(self) -> None:
-        self._optimistic_activity = VacuumActivity.CLEANING
+    def _set_optimistic(self, activity: VacuumActivity) -> None:
+        self._optimistic_activity = activity
+        self._optimistic_cycles_left = _OPTIMISTIC_HOLD_CYCLES
         self.async_write_ha_state()
+
+    async def async_start(self) -> None:
+        self._set_optimistic(VacuumActivity.CLEANING)
         await self.coordinator.api.start(self.coordinator.sn)
         await self.coordinator.async_request_refresh()
 
@@ -88,13 +107,11 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
         await self.async_return_to_base()
 
     async def async_return_to_base(self, **kwargs) -> None:
-        self._optimistic_activity = VacuumActivity.RETURNING
-        self.async_write_ha_state()
+        self._set_optimistic(VacuumActivity.RETURNING)
         await self.coordinator.api.return_to_base(self.coordinator.sn)
         await self.coordinator.async_request_refresh()
 
     async def async_pause(self) -> None:
-        self._optimistic_activity = VacuumActivity.PAUSED
-        self.async_write_ha_state()
+        self._set_optimistic(VacuumActivity.PAUSED)
         await self.coordinator.api.pause(self.coordinator.sn)
         await self.coordinator.async_request_refresh()
