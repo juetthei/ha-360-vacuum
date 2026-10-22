@@ -100,3 +100,20 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   Akkustand. Vor weiteren Batterie-Fixes die tatsächlichen Statusfelder prüfen.
 - HA kann Sensor-Entity-IDs übersetzen (z. B. Suffix `_batterie`). Die IDs aus der
   Entity-Registry verwenden, nicht blind die englischen README-Beispiele übernehmen.
+
+## Diagnose der fehlenden Batteriewerte
+
+- Direkte Statusabfrage `20001`, dieselbe Abfrage mit App-Parametern und eine
+  `30000`-Sammelabfrage mit ausschließlich `20001` lieferten bei beiden Geräten
+  `errno: 0` und `data: {}`. GetList enthält keine Batteriefelder. Die HTTP-Antwort
+  bestätigt nur die Anfrage; sie enthält hier keinen Live-Status.
+- Der Live-Status wird über den separaten TCP-Push-Kanal übertragen. Zum
+  Entschlüsseln wird der zur SID gehörende `pushKey` benötigt. Die bisherige
+  Integration speichert nur QID/SID und implementiert keinen Push-Empfang.
+- Ein weiterer HTTP-Fallback oder ein geschätzter Akkustand löst das Problem nicht.
+  Nächster Schritt: Push-Schlüssel sicher aus derselben App-Anmeldung beschaffen,
+  dann Push-Empfang implementieren und echte Batterieupdates nachweisen.
+- Protokollreferenzen: `TA2k/ioBroker.botslab360/lib/china.js` und
+  `placix/python-botslab360/src/botslab360/protocol.py` auf GitHub. Letzteres
+  berücksichtigt TCP-Fragmentierung, Bind-Bestätigung, AES-CBC und das Statusfeld
+  `elecReal`. Keine vollständigen Push-Nachrichten oder Schlüssel protokollieren.
