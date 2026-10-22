@@ -6,7 +6,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import Api360, Api360AuthError, Api360Error
-from .const import DOMAIN, SCAN_INTERVAL
+from .const import DOMAIN, MANUFACTURER, MODEL, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +39,16 @@ class Robot360Coordinator(DataUpdateCoordinator[dict]):
         self.api = api
         self.sn = sn
         self.device_name = name
+
+    @property
+    def device_info(self) -> dict:
+        """Geräte-Info, geteilt von allen Entities dieses Roboters."""
+        return {
+            "identifiers": {(DOMAIN, self.sn)},
+            "name": self.device_name,
+            "manufacturer": MANUFACTURER,
+            "model": MODEL,
+        }
 
     async def _async_update_data(self) -> dict:
         try:

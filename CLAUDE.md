@@ -19,7 +19,8 @@ custom_components/vacuum_360/
 ├── __init__.py        Setup, async_setup_entry, async_unload_entry
 ├── api.py             API-Client (aiohttp), Commands, GetList
 ├── coordinator.py     DataUpdateCoordinator, 30s Polling via GetList
-├── vacuum.py          StateVacuumEntity, Start/Pause/Return/Stop/Batterie
+├── vacuum.py          StateVacuumEntity, Start/Pause/Return/Stop
+├── sensor.py          Akku-Sensor (device_class battery)
 ├── config_flow.py     ConfigFlow (QID+SID), ReauthFlow
 ├── const.py           URLs, infoTypes, MODE_MAP
 ├── manifest.json
@@ -68,3 +69,10 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 - TCP-Push-Socket (47.254.151.104:443, AES-128-CBC) noch nicht implementiert → aktuell nur Polling
 - Auto-Login via passport.360.cn (DES-Encrypt) nicht implementiert (Captcha-Problem)
 - Karten-Entity via S3 nicht implementiert
+
+## HA-Kompatibilität
+
+- Minimum: HA 2025.1 (`VacuumActivity` existiert erst ab dieser Version)
+- HA 2026.9 hat Batterie aus `VacuumEntityFeature` und `StateVacuumEntity`
+  entfernt. Der Akkustand liegt daher seit v1.1.0 in `sensor.py` als eigene
+  Entity (`sensor.<name>_battery`) statt als `battery_level`-Attribut.

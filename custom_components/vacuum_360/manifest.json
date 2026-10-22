@@ -1,7 +1,7 @@
 {
   "domain": "vacuum_360",
   "name": "360 Vacuum Robot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "iot_class": "cloud_polling",
   "config_flow": true,
   "documentation": "",

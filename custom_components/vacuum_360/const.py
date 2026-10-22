@@ -15,6 +15,9 @@ SCAN_INTERVAL = 30
 CONF_QID = "qid"
 CONF_SID = "sid"
 
+MANUFACTURER = "Qihoo 360"
+MODEL = "360 AI CleanRobot S6"
+
 # 360-Cloud-Modusnamen → HA VacuumActivity
 MODE_MAP: dict[str, str] = {
     "charge":      "docked",

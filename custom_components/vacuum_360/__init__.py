@@ -11,7 +11,7 @@ from .coordinator import Robot360Coordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["vacuum"]
+PLATFORMS = ["vacuum", "sensor"]
 
 
 def _sn_from_device(dev: dict) -> str | None:

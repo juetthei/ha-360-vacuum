@@ -2,7 +2,7 @@
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg)](https://www.home-assistant.io)
+[![HA Version](https://img.shields.io/badge/Home%20Assistant-2025.1%2B-blue.svg)](https://www.home-assistant.io)
 
 Home Assistant custom component for **Qihoo 360 vacuum robots** (360 AI CleanRobot S6 and similar models). Controls your robot directly through the 360 Smart Home Cloud API — no local API, no Google Assistant workaround.
 
@@ -27,17 +27,32 @@ Likely compatible (same cloud API, untested):
 | Start cleaning | ✅ |
 | Pause | ✅ |
 | Return to base / Stop | ✅ |
-| Battery level | ✅ |
+| Battery level | ✅ (separate sensor entity) |
 | Status (cleaning / docked / paused / returning) | ✅ |
 | Multiple robots (same account) | ✅ |
 | Real-time status via TCP push | 🔜 planned |
 | Room/zone cleaning | 🔜 planned |
 
+### Entities
+
+Each robot gets one device with two entities:
+
+| Entity | Description |
+|--------|-------------|
+| `vacuum.<robot_name>` | Status and controls (start / pause / return to base / stop) |
+| `sensor.<robot_name>_battery` | Battery level in % |
+
+> **Upgrading from 1.0.x on Home Assistant 2026.9 or newer:** battery used to be
+> the `battery_level` attribute of the vacuum entity. Home Assistant 2026.9
+> removed battery support from vacuum entities entirely, so it is now its own
+> sensor entity. Dashboards or automations reading the old attribute must be
+> pointed at `sensor.<robot_name>_battery` instead.
+
 ---
 
 ## Prerequisites
 
-- Home Assistant 2024.1 or newer
+- Home Assistant 2025.1 or newer
 - An Android phone with the **360 Smart** app installed and logged in
 - ADB (Android Debug Bridge) — installed on your PC or server
 - USB cable (or wireless ADB) to connect the phone
