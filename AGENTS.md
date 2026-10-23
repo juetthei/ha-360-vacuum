@@ -130,3 +130,8 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   `mode: fullcharge`; dabei wurde kein Start-, Rückkehr- oder Tonbefehl gesendet.
 - Isolationstest: `python -m unittest discover -s tests` in einer Umgebung mit
   Home Assistant und der Manifest-Abhängigkeit. Der Test nutzt nur Mock-Antworten.
+- Produktiv nach Installation von v1.2.0 auf HA 2025.11.1: beide Batterie-Sensoren
+  zeigen 100 %, beide Vacuum-Entities `docked`, HA HTTP 200, keine relevanten
+  Startfehler. Temporäre Schlüsseldateien wurden entfernt; der Push-Schlüssel
+  liegt nur im HA-Config-Entry. Integrations- und Config-Entry-Backups liegen
+  geschützt auf dem Zielsystem.
