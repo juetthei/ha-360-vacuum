@@ -19,7 +19,7 @@ custom_components/vacuum_360/
 ├── coordinator.py     DataUpdateCoordinator, 30s Polling via GetList
 ├── vacuum.py          StateVacuumEntity, Start/Pause/Return/Stop
 ├── sensor.py          Akku-Sensor (device_class battery)
-├── camera.py          Grundriss + Fahrspur der letzten Reinigung
+├── camera.py          Aktueller Grundriss + Sperrzonen, optionale letzte Fahrspur
 ├── config_flow.py     ConfigFlow (QID+SID), ReauthFlow
 ├── const.py           URLs, infoTypes, MODE_MAP
 ├── manifest.json
@@ -137,7 +137,7 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   liegt nur im HA-Config-Entry. Integrations- und Config-Entry-Backups liegen
   geschützt auf dem Zielsystem.
 
-## Karte der letzten Reinigung
+## Historische Kartenbasis (bis v1.3.1)
 
 - `getList`/`getOne` unter `/clean/record/` liefern abgeschlossene Aufzeichnungen
   ohne Roboterbewegung. Die zuvor getestete Fork-Kamera zeichnet nur `posArray`.
@@ -145,7 +145,7 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   Pixeln. Beobachtete Klassen: 127 = außerhalb, 255 = Boden, 0 = Wand/Rand.
   `x_min`, `y_min` und `resolution` orientieren die Fahrspur in Metern;
   `posArray` liegt in Millimetern. Keine Achse spiegeln.
-- Die Kamera zeigt die letzte abgeschlossene Reinigung, keine Live-Karte.
+- Die Kamera zeigte bis v1.3.1 die letzte abgeschlossene Reinigung.
   Die Bildabfrage ist fünf Minuten zwischengespeichert. Für beide vorhandenen
   Geräte wurden echte PNGs aus den Rohdaten erzeugt und geprüft.
 - Lokaler Dekoder wurde gegen `lz4.block` für beide echten Karten bytegenau
@@ -153,7 +153,7 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 
 ## Sperrzonen (Stand 2026-10-23)
 
-- Die vorhandene HA-Kamera rendert nur die letzte Reinigungsaufzeichnung.
+- Die HA-Kamera renderte bis v1.3.1 nur die letzte Reinigungsaufzeichnung.
   `/clean/record/getOne` enthält bei beiden Geräten keine Sperrzonen; auch
   `getBackupMapList.areaSetting` war für alle vorhandenen Backups leer.
 - Die reine Kartenabfrage `30000` mit `botslab360.rooms.LOAD_DATA` liefert per
@@ -168,6 +168,15 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 - Für eine zuverlässige Anzeige zuerst die tatsächliche Zonenquelle und die
   Zuordnung zu `mapId`/Koordinaten ermitteln. Eine HA-Überlagerung allein
   konfiguriert keine Sperrzone im Roboter.
+
+- Nach dem erneuten Setzen lieferte `30000`/`20002` auf der aktiven oberen Karte
+  ein `area`-Element mit `active: "forbid"` und vier `vertexs` in Millimetern;
+  `AreaSettingId` stieg, `mapId` blieb gleich. Die vom Nutzer aktivierte ältere
+  untere Karte lieferte zwei solche Elemente. Ab v1.3.2 zeichnet die Kamera
+  daher die **aktive** Karte mit roten Sperrflächen und die letzte Fahrspur nur
+  bei exakt passenden Kartenmaßen und Ursprung. Bei fehlender aktiver Karte
+  wird kein altes Zonenbild weitergeliefert. Rote Flächen wurden mit beiden
+  echten Karten visuell geprüft; sie sind keine Sicherheitsgarantie.
 
 ## Geplante benannte Bereichsreinigung
 

@@ -1,4 +1,4 @@
-"""Map of the last completed cleaning, rendered from the 360 cloud record."""
+"""Current robot map with forbidden areas and the last matching cleaning route."""
 
 import base64
 import logging
@@ -51,12 +51,21 @@ class Robot360Map(Camera):
         if self._image and self._updated and now - self._updated < _CACHE_AGE:
             return self._image
         try:
-            record = await self.coordinator.api.get_latest_clean_record(self.coordinator.sn)
-            if record:
-                self._image = await self.hass.async_add_executor_job(_render_map, record)
-                self._updated = now
+            current = await self.coordinator.api.get_current_map(self.coordinator.sn)
+            try:
+                record = await self.coordinator.api.get_latest_clean_record(self.coordinator.sn)
+                if record and all(
+                    current.get(key) == record.get(key)
+                    for key in ("width", "height", "x_min", "y_min", "resolution")
+                ):
+                    current["posArray"] = record.get("posArray")
+            except (Api360Error, TimeoutError):
+                pass
+            self._image = await self.hass.async_add_executor_job(_render_map, current)
+            self._updated = now
         except (Api360Error, ValueError, TypeError, KeyError, IndexError, OSError) as exc:
             _LOGGER.warning("Karte konnte nicht gezeichnet werden: %s", exc)
+            self._image = None
         return self._image
 
 
@@ -108,7 +117,7 @@ def _render_map(record: dict) -> bytes:
     width, height = int(record["width"]), int(record["height"])
     if not 0 < width <= 2048 or not 0 < height <= 2048:
         raise ValueError("Invalid map dimensions")
-    pixels = _decompress_map(base64.b64decode(record["map"]), width * height)
+    pixels = _decompress_map(base64.b64decode(record["map"].replace(" ", "+")), width * height)
     palette = {127: (32, 44, 57), 255: (219, 235, 220), 0: (82, 103, 116)}
     image = Image.new("RGB", (width, height))
     image.putdata([palette.get(pixel, (150, 160, 165)) for pixel in pixels])
@@ -127,6 +136,21 @@ def _render_map(record: dict) -> bytes:
     ]
     if len(points) > 1:
         draw.line(points, fill=(242, 137, 68), width=1)
+    zones = Image.new("RGBA", (width, height))
+    zone_draw = ImageDraw.Draw(zones)
+    for area in record.get("area") or []:
+        vertices = area.get("vertexs") or []
+        area_points = [
+            (round((point[0] / 1000 - x_min) / resolution),
+             round((point[1] / 1000 - y_min) / resolution))
+            for point in vertices
+            if isinstance(point, list) and len(point) == 2
+        ]
+        if area.get("active") == "forbid" and len(area_points) >= 3:
+            zone_draw.polygon(area_points, fill=(224, 42, 42, 100), outline=(224, 42, 42, 255))
+        elif area.get("active") == "line" and len(area_points) == 2:
+            zone_draw.line(area_points, fill=(224, 42, 42, 255), width=2)
+    image = Image.alpha_composite(image.convert("RGBA"), zones).convert("RGB")
     image = image.resize((width * 4, height * 4), Image.Resampling.NEAREST)
     from io import BytesIO
 

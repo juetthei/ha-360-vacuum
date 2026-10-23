@@ -28,7 +28,7 @@ Likely compatible (same cloud API, untested):
 | Pause | ✅ |
 | Return to base / Stop | ✅ |
 | Battery level | ✅ (separate sensor entity) |
-| Map of last cleaning | ✅ (camera entity with decoded floor plan and cleaning path) |
+| Current map and no-go zones | ✅ (camera entity; last cleaning path shown when map coordinates match) |
 | Status (cleaning / docked / paused / returning) | ✅ |
 | Multiple robots (same account) | ✅ |
 | Real-time status via TCP push | 🔜 planned |
@@ -42,7 +42,7 @@ Each robot gets one device with vacuum, battery, and map entities:
 |--------|-------------|
 | `vacuum.<robot_name>` | Status and controls (start / pause / return to base / stop) |
 | `sensor.<robot_name>_battery` | Battery level in % |
-| `camera.<robot_name>_karte` | Floor plan and route of the last completed cleaning |
+| `camera.<robot_name>_karte` | Active floor plan with no-go zones in red; last route when coordinates match |
 
 > **Upgrading from 1.0.x on Home Assistant 2026.9 or newer:** battery used to be
 > the `battery_level` attribute of the vacuum entity. Home Assistant 2026.9

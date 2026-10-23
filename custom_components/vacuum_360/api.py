@@ -23,6 +23,15 @@ _BASE_HEADERS = {
 
 _TIMEOUT = aiohttp.ClientTimeout(total=15)
 
+_MAP_LOAD_DATA = {
+    "cmds": [
+        {"infoType": "20001", "data": {}},
+        {"infoType": "21014", "data": {}},
+        {"infoType": "21011", "data": {"startPos": 0, "userId": 0, "mask": 0}},
+    ],
+    "mainCmds": [],
+}
+
 
 class Api360Error(Exception):
     pass
@@ -136,6 +145,31 @@ class Api360:
             if record.get("map") and record.get("width") and record.get("height"):
                 return record
         return None
+
+    async def get_current_map(self, sn: str) -> dict:
+        """Read the robot's active map, including its current forbidden areas."""
+        if not self.pushkey:
+            raise Api360Error("Push-Schlüssel für aktuelle Karte fehlt")
+        try:
+            async with PushClient(self.sid, self.pushkey) as push:
+                await self.send_cmd(sn, "30000", _MAP_LOAD_DATA)
+                async with asyncio.timeout(25):
+                    while True:
+                        event = await push.read_event()
+                        if event.get("sn") != sn:
+                            continue
+                        body = event.get("data")
+                        if isinstance(body, str):
+                            body = json.loads(body)
+                        if not isinstance(body, dict) or str(body.get("infoType")) != "20002":
+                            continue
+                        map_data = body.get("data")
+                        if isinstance(map_data, str):
+                            map_data = json.loads(map_data)
+                        if isinstance(map_data, dict) and map_data.get("map"):
+                            return map_data
+        except (ApiError, aiohttp.ClientError, OSError, TimeoutError, ValueError) as exc:
+            raise Api360Error("Aktuelle Karte konnte nicht abgerufen werden") from exc
 
     async def start(self, sn: str) -> None:
         await self.send_cmd(sn, INFO_START, {"mode": "smartClean", "globalCleanTimes": 1})
