@@ -1,7 +1,9 @@
 """Current robot map with forbidden areas and the last matching cleaning route."""
 
+import asyncio
 import base64
 import logging
+from contextlib import suppress
 from datetime import timedelta
 
 from PIL import Image, ImageDraw
@@ -35,6 +37,7 @@ class Robot360Map(Camera):
 
     def __init__(self, coordinator: Robot360Coordinator) -> None:
         super().__init__()
+        self.content_type = "image/png"
         self.coordinator = coordinator
         self._attr_unique_id = f"{coordinator.sn}_map"
         self._image: bytes | None = None
@@ -50,22 +53,30 @@ class Robot360Map(Camera):
         now = dt_util.utcnow()
         if self._image and self._updated and now - self._updated < _CACHE_AGE:
             return self._image
+        record_task = asyncio.create_task(
+            self.coordinator.api.get_latest_clean_record(self.coordinator.sn)
+        )
         try:
             current = await self.coordinator.api.get_current_map(self.coordinator.sn)
             try:
-                record = await self.coordinator.api.get_latest_clean_record(self.coordinator.sn)
+                record = await asyncio.wait_for(record_task, timeout=1)
                 if record and all(
                     current.get(key) == record.get(key)
                     for key in ("width", "height", "x_min", "y_min", "resolution")
                 ):
                     current["posArray"] = record.get("posArray")
-            except (Api360Error, TimeoutError):
+            except (Api360Error, TimeoutError, ValueError, TypeError, KeyError):
                 pass
             self._image = await self.hass.async_add_executor_job(_render_map, current)
             self._updated = now
         except (Api360Error, ValueError, TypeError, KeyError, IndexError, OSError) as exc:
             _LOGGER.warning("Karte konnte nicht gezeichnet werden: %s", exc)
             self._image = None
+        finally:
+            if not record_task.done():
+                record_task.cancel()
+            with suppress(asyncio.CancelledError, Exception):
+                await record_task
         return self._image
 
 

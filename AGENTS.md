@@ -177,6 +177,29 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   bei exakt passenden Kartenmaßen und Ursprung. Bei fehlender aktiver Karte
   wird kein altes Zonenbild weitergeliefert. Rote Flächen wurden mit beiden
   echten Karten visuell geprüft; sie sind keine Sicherheitsgarantie.
+- HA bricht Kamera-Bildabfragen nach 10 Sekunden ab. Ab v1.3.3 laufen die
+  optionale historische Fahrspur und die aktuelle Kartenabfrage gleichzeitig;
+  auf eine langsame Fahrspur wird höchstens eine Sekunde gewartet. Die Kamera
+  meldet ihre PNG-Bilder mit `image/png`. Sperrzonen stammen weiterhin nur aus
+  der aktiven Karte.
+- Live mit beiden Geräten geprüft: unten zwei, oben eine `forbid`-Fläche; die
+  jeweilige HA-Kameramethode lieferte in rund drei Sekunden PNG mit roten Pixeln.
+  Auf dem Zielsystem lief v1.3.3. In `.storage/lovelace` ist `Pi` die erste Ansicht;
+  beide Mini-Karten nutzen `aspect_ratio: 1:1` und `fit_mode: contain`.
+- Eine Sperrzone in HA zu *zeichnen* schützt den Roboter nicht. Zum Anlegen muss
+  die Zone für die aktuelle `mapId` an das Gerät geschrieben und durch erneutes
+  Lesen der aktiven Karte bestätigt werden. Der Schreibbefehl für manuelle
+  S6-Sperrzonen ist noch nicht verifiziert; `26000 setAutoForbidArea` aus der
+  öffentlichen 360-Protokollliste bezeichnet eine automatische Zone, nicht
+  die hier benötigte Rechteck-Geometrie. Keine Mutationsbefehle zum Probieren
+  an den Roboter senden.
+- `changeMap` (`21025`) lädt laut App-Protokoll einen Backup-Datensatz anhand
+  `cleanId`, `downUrl`, `md5`, nicht allein anhand der `mapId`. Bei den hier
+  abgefragten Backups war `areaSetting` leer. Automatisches Wiederherstellen
+  könnte daher die Treppensperre verlieren; bei Kartenwechsel zunächst HA-Start
+  blockieren und Sperrzonen auf der aktiven Karte prüfen. Das
+  [S6-Handbuch](https://www.botslab360.com/uploads/soft/20230801/1-230P114535aA.pdf)
+  bestätigt, dass eine neu erzeugte Karte bisherige Sperrzonen verliert.
 
 ## Geplante benannte Bereichsreinigung
 

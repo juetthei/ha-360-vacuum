@@ -3,12 +3,13 @@ import base64
 import json
 import unittest
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from PIL import Image
 
 from custom_components.vacuum_360.api import Api360, _MAP_LOAD_DATA
-from custom_components.vacuum_360.camera import _decompress_map, _render_map
+from custom_components.vacuum_360.camera import Robot360Map, _decompress_map, _render_map
 
 
 class MapDecodeTest(unittest.TestCase):
@@ -55,3 +56,36 @@ class MapDecodeTest(unittest.TestCase):
             self.assertEqual(current["area"][0]["active"], "forbid")
 
         asyncio.run(check())
+
+
+class MapCameraTest(unittest.IsolatedAsyncioTestCase):
+    async def test_slow_route_does_not_delay_forbidden_zones(self):
+        async def slow_route(_sn):
+            await asyncio.sleep(10)
+
+        async def render_in_thread(func, arg):
+            return await asyncio.to_thread(func, arg)
+
+        current = {
+            "width": 4, "height": 4, "resolution": 1, "x_min": 0, "y_min": 0,
+            "map": base64.b64encode(b"\xf0\x01" + b"\xff" * 16).decode(),
+            "area": [{"active": "forbid", "vertexs": [
+                [1000, 1000], [3000, 1000], [3000, 3000], [1000, 3000],
+            ]}],
+        }
+        api = SimpleNamespace(
+            get_current_map=AsyncMock(return_value=current),
+            get_latest_clean_record=AsyncMock(side_effect=slow_route),
+        )
+        camera = Robot360Map(SimpleNamespace(sn="robot-1", api=api))
+        camera.hass = SimpleNamespace(async_add_executor_job=AsyncMock(
+            side_effect=render_in_thread
+        ))
+
+        image_data = await asyncio.wait_for(camera.async_camera_image(), timeout=2)
+
+        self.assertEqual(camera.content_type, "image/png")
+        self.assertEqual(Image.open(BytesIO(image_data)).format, "PNG")
+        self.assertGreater(Image.open(BytesIO(image_data)).getpixel((8, 8))[0],
+                           Image.open(BytesIO(image_data)).getpixel((8, 8))[1])
+        api.get_current_map.assert_awaited_once_with("robot-1")

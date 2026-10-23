@@ -29,6 +29,7 @@ Likely compatible (same cloud API, untested):
 | Return to base / Stop | ✅ |
 | Battery level | ✅ (separate sensor entity) |
 | Current map and no-go zones | ✅ (camera entity; last cleaning path shown when map coordinates match) |
+| Create no-go zones in Home Assistant | 🔜 planned; requires verified device write command and readback |
 | Status (cleaning / docked / paused / returning) | ✅ |
 | Multiple robots (same account) | ✅ |
 | Real-time status via TCP push | 🔜 planned |
