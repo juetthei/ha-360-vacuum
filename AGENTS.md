@@ -19,6 +19,7 @@ custom_components/vacuum_360/
 ├── coordinator.py     DataUpdateCoordinator, 30s Polling via GetList
 ├── vacuum.py          StateVacuumEntity, Start/Pause/Return/Stop
 ├── sensor.py          Akku-Sensor (device_class battery)
+├── camera.py          Grundriss + Fahrspur der letzten Reinigung
 ├── config_flow.py     ConfigFlow (QID+SID), ReauthFlow
 ├── const.py           URLs, infoTypes, MODE_MAP
 ├── manifest.json
@@ -135,3 +136,17 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   Startfehler. Temporäre Schlüsseldateien wurden entfernt; der Push-Schlüssel
   liegt nur im HA-Config-Entry. Integrations- und Config-Entry-Backups liegen
   geschützt auf dem Zielsystem.
+
+## Karte der letzten Reinigung
+
+- `getList`/`getOne` unter `/clean/record/` liefern abgeschlossene Aufzeichnungen
+  ohne Roboterbewegung. Die zuvor getestete Fork-Kamera zeichnet nur `posArray`.
+- `getOne.map` ist ein Base64-kodierter LZ4-Block mit genau `width * height`
+  Pixeln. Beobachtete Klassen: 127 = außerhalb, 255 = Boden, 0 = Wand/Rand.
+  `x_min`, `y_min` und `resolution` orientieren die Fahrspur in Metern;
+  `posArray` liegt in Millimetern. Keine Achse spiegeln.
+- Die Kamera zeigt die letzte abgeschlossene Reinigung, keine Live-Karte.
+  Die Bildabfrage ist fünf Minuten zwischengespeichert. Für beide vorhandenen
+  Geräte wurden echte PNGs aus den Rohdaten erzeugt und geprüft.
+- Lokaler Dekoder wurde gegen `lz4.block` für beide echten Karten bytegenau
+  geprüft; zur Laufzeit wird keine zusätzliche LZ4-Abhängigkeit benötigt.

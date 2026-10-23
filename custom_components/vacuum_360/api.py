@@ -102,6 +102,41 @@ class Api360:
         self._check_errno(result, f"cmd/{info_type}")
         return result.get("data") or {}
 
+    async def get_latest_clean_record(self, sn: str) -> dict | None:
+        """Read the latest completed cleaning map, without sending robot commands."""
+        async def post(path: str, payload: dict) -> dict:
+            data = {
+                "sn": sn,
+                "devType": DEV_TYPE,
+                "from": "mpc_and",
+                "taskid": str(uuid.uuid4()),
+                "appVer": "11.0.0",
+                "lang": "de_DE",
+                **payload,
+            }
+            try:
+                async with self._session.post(
+                    f"https://q.smart.360.cn{path}",
+                    headers=self._headers(),
+                    data=data,
+                    timeout=_TIMEOUT,
+                ) as resp:
+                    result = await resp.json(content_type=None)
+            except aiohttp.ClientError as exc:
+                raise Api360Error("Reinigungsaufzeichnung nicht erreichbar") from exc
+            self._check_errno(result, path)
+            return result.get("data") or {}
+
+        listing = await post("/clean/record/getList", {"lastId": "", "pageSize": "5"})
+        for item in (listing.get("list") or listing.get("records") or []):
+            if not item.get("cleanId"):
+                continue
+            record = await post("/clean/record/getOne", {"cleanId": item["cleanId"]})
+            record = record.get("record") or record
+            if record.get("map") and record.get("width") and record.get("height"):
+                return record
+        return None
+
     async def start(self, sn: str) -> None:
         await self.send_cmd(sn, INFO_START, {"mode": "smartClean", "globalCleanTimes": 1})
 
