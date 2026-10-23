@@ -150,3 +150,21 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   Geräte wurden echte PNGs aus den Rohdaten erzeugt und geprüft.
 - Lokaler Dekoder wurde gegen `lz4.block` für beide echten Karten bytegenau
   geprüft; zur Laufzeit wird keine zusätzliche LZ4-Abhängigkeit benötigt.
+
+## Sperrzonen (Stand 2026-10-23)
+
+- Die vorhandene HA-Kamera rendert nur die letzte Reinigungsaufzeichnung.
+  `/clean/record/getOne` enthält bei beiden Geräten keine Sperrzonen; auch
+  `getBackupMapList.areaSetting` war für alle vorhandenen Backups leer.
+- Die reine Kartenabfrage `30000` mit `botslab360.rooms.LOAD_DATA` liefert per
+  Push `20002` die aktuelle Karte. Bei der oberen Etage enthielt sie `mapId`,
+  `AreaSettingId`, Karte und `area: []`, aber keine Sperrzonen-Geometrie.
+  Der Status `20001` enthielt ebenfalls nur `AreaSettingId` und
+  `isInForbidMode`, keine Koordinaten. Keine Sperrzonen erfinden oder aus
+  `area: []` auf sichere Treppenabsicherung schließen.
+- Die aktuelle Kartenantwort hatte Leerzeichen statt `+` in Base64; vor einer
+  Decodierung der Live-Karte diese Form-Kodierung berücksichtigen. Deren
+  Pixelklassen waren wie bei der Historie nur 0, 127 und 255.
+- Für eine zuverlässige Anzeige zuerst die tatsächliche Zonenquelle und die
+  Zuordnung zu `mapId`/Koordinaten ermitteln. Eine HA-Überlagerung allein
+  konfiguriert keine Sperrzone im Roboter.
