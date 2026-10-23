@@ -179,11 +179,20 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 - `botslab360==0.7.1` kann erkannte Räume reinigen, bietet aber keine frei
   gezeichnete Zonenreinigung. Bei den aktuellen S6-Kartendaten war `area: []`
   und `smartArea` fehlte. Deshalb die Raum-API nicht als Zonen-API ausgeben.
-- Protokollrecherche: `stonegray/360smartai/infoType_fields.md` nennt
-  `setSweepAreas` (21023 + 21005) und `startAreaSweep` nur ohne verifizierte
-  Nutzdaten. Der genaue S6-App-Aufruf muss erst durch statische App-Analyse
-  oder einen späteren, ausdrücklich autorisierten Test geklärt werden.
-  Bis dahin keine produktive Schaltfläche, die einen unbestätigten Befehl sendet.
+- Statische Analyse der auf dem eigenen Android-Handy installierten 360Robot-App
+  11.1.7 (`com.qihoo.smarthome`): `SweeperPresenter.startAreaSweep` verwendet
+  für Geräte ohne `supportBlockClean` (bei beiden S6 nicht im Support-JSON)
+  einen `30000`-Sammelbefehl mit zwei `cmds`:
+  `21023` enthält `SweepAreaEnable{mapId, cleanId:[-2], extraAreas:[SweepArea]}`;
+  `21005` enthält `SweepCmd{mode:"reAppointClean"}` für einen neuen Lauf.
+  `mainCmds` enthält `"21005"`. Der App-Befehl wurde nur aus Code gelesen,
+  nie an die Geräte gesendet. Vor einer produktiven Schaltfläche mit Mockdaten
+  prüfen und nach neuer Karte bewusst mit dem Nutzer testen.
+- `SweepArea.setRectF` schreibt vier Eckpunkte im Uhrzeigersinn als ganzzahlige
+  Millimeterwerte (`vertexs`); der Builder setzt bei einer normalen Zone
+  `active:"normal"`, außerdem `id` und `name` (`rect<id>` in der App).
+  Die Frontend-Pixel müssen über `x_min`, `y_min`, `resolution` in dieselben
+  Kartenkoordinaten umgerechnet werden wie die bisherige Fahrspur.
 - Für die Oberfläche eignet sich eine Lovelace-Subview, zu der die Roboter-Kachel
   navigiert. Home Assistants eingebaute `picture-elements`-Karte kann gespeicherte
   Rechtecke zeigen; eine komfortable Zeichnen-/Speichern-Funktion braucht eigene
