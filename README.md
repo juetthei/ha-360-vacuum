@@ -47,9 +47,10 @@ Each robot gets one device with vacuum, battery, and map entities:
 | `camera.<robot_name>_karte` | Active floor plan with no-go zones in red; last route when coordinates match |
 | `sensor.<robot_name>_treppensperre` | `safe`, `zone_missing`, `wrong_map` or `check_failed` when a map guard is configured |
 
-Saved cleaning rectangles can be started with `vacuum_360.clean_zone` and a
-`zone_id`. The integration checks the active map, the configured no-go zone and
-the robot's idle/docked status before sending the area command. The command
+Saved cleaning areas can contain one or several rectangles. Start one with
+`vacuum_360.clean_zone` and its `zone_id`; all rectangles in that area are sent
+in one command. The integration checks the active map, the configured no-go
+zone and the robot's idle/docked status before sending the command. The command
 format has been checked against the 360 app and mocked tests; a real zone start
 has not yet been performed with this integration.
 

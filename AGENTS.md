@@ -237,8 +237,8 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   wurden als **Schlafzimmer oben** in der privaten HA-Datei
   `/config/.storage/vacuum_360_saved_zones` gespeichert, zusammen mit der
   aktiven `map_id` und Gerätezuordnung. Datei gehört nicht ins öffentliche
-  Repo. Es gibt noch keinen Startknopf; der Speicherstand löst keinen Auftrag
-  aus. Bei neuer Karte die gespeicherte Fläche nicht ungeprüft verwenden.
+  Repo. Der Speicherstand allein löst keinen Auftrag aus. Bei neuer Karte
+  die gespeicherte Fläche nicht ungeprüft verwenden.
 - Der Nutzer bestätigte nach Abschluss: `rect2` war das Schlafzimmer. Im
   schreibfreien Nachlauf meldete der Roboter `charge`; dieselbe `map_id`,
   `rect2` und die Treppensperre waren weiter vorhanden (`safe`). Die private
@@ -280,10 +280,31 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   ersten Nutzer-Test Treppe physisch schützen. Die bei der App-Bereichsreinigung
   beobachteten Modi `sweep` und `reAppointClean` werden als Reinigung angezeigt.
 - Die Pi-Kachel oben navigiert zur Lovelace-Subview `robot-oben`. Darin sind
-  Schlafzimmer aktiv und Flur, Bad, Büro, Kinderzimmer als nicht startbare
-  Platzhalter angelegt. Die aktuelle `normal`-Fläche wird auf der Kamerakarte
-  blau gezeichnet, `forbid` bleibt rot. Für die vier weiteren Räume zuerst
-  echte Rechtecke auf der aktiven Karte erfassen; keine Koordinaten erfinden.
+  Schlafzimmer und Flur als Knöpfe aktiv. Bad, Büro und Kinderzimmer bleiben
+  nicht startbare Platzhalter; das Bad ist zwar gespeichert, sein Knopf aber
+  noch inaktiv. Die aktuelle `normal`-Fläche wird auf der Kamerakarte blau
+  gezeichnet, `forbid` bleibt rot. Für Büro und Kinderzimmer zuerst echte
+  Rechtecke auf der aktiven Karte erfassen; keine Koordinaten erfinden.
+
+- Stand 2026-10-23: Der Nutzer bestätigte „Bad oben“ anhand der zuletzt
+  abgeschlossenen Fahrt. Alle 757 Fahrspurpunkte lagen im damals aktiven
+  Rechteck, keiner in der Schlafzimmer-Zone. Die private HA-Storage-Datei
+  enthält `bad_oben` zusätzlich zu `schlafzimmer_oben`.
+- „Flur oben“ besteht aus zwei vom Nutzer bestätigten Rechtecken auf derselben
+  aktiven Karte. Sie liegen als eine Zone `flur_oben` mit `areas`-Liste in
+  der privaten HA-Storage-Datei. `observed_after_run` ist `false`, da
+  die letzte abgeschlossene Fahrt noch das Bad zeigte. Die aktuelle Karte
+  zeigt die beiden blauen Flächen, während die orange Fahrspur weiterhin
+  die letzte abgeschlossene Reinigung zeigt.
+- Ab v1.5.0 akzeptiert `clean_zone` weiter einzelne Rechtecke mit
+  `vertices` sowie Gruppen mit `areas`. Alle Rechtecke einer Gruppe
+  werden als `extraAreas` in einem einzigen `30000`-Befehl übergeben.
+  Vorher werden alle vier Millimeter-Eckpunkte und eindeutige Teilflächen-IDs
+  geprüft; die bestehende HA-Startsperre gilt ebenfalls. Die 18 Mocktests
+  liefen im HA-Container erfolgreich. Auf dem Zielsystem war v1.5.0 installiert
+  und der Flur-Knopf ruft `vacuum_360.clean_zone` mit `flur_oben` auf.
+  Nach dem HA-Neustart: HTTP 200 und Treppensperren-Sensor `safe`.
+  Ein echter Zonenstart bleibt ungetestet; kein Befehl wurde ausgelöst.
 
 ## Vorübergehende Startsperre für gefährdete Etagen
 

@@ -175,19 +175,19 @@ class Api360:
         await self.send_cmd(sn, INFO_START, {"mode": "smartClean", "globalCleanTimes": 1})
 
     async def clean_zone(self, sn: str, map_id: int, zone: dict) -> None:
-        """Start cleaning one saved rectangle on the active map."""
-        area = {
-            "vertexs": zone["vertices"],
+        """Start cleaning all rectangles in one saved area on the active map."""
+        areas = [{
+            "vertexs": item["vertices"],
             "active": "normal",
-            "name": zone["source_area_name"],
+            "name": item["source_area_name"],
             "tag": "",
-            "id": zone["source_area_id"],
+            "id": item["source_area_id"],
             "mode": "default",
-        }
+        } for item in zone.get("areas", [zone])]
         await self.send_cmd(sn, "30000", {
             "cmds": [
                 {"infoType": "21023", "data": {
-                    "mapId": map_id, "cleanId": [-2], "extraAreas": [area],
+                    "mapId": map_id, "cleanId": [-2], "extraAreas": areas,
                 }},
                 {"infoType": "21005", "data": {"mode": "reAppointClean"}},
             ],
