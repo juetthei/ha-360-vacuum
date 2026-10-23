@@ -238,6 +238,10 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   aktiven `map_id` und Gerätezuordnung. Datei gehört nicht ins öffentliche
   Repo. Es gibt noch keinen Startknopf; der Speicherstand löst keinen Auftrag
   aus. Bei neuer Karte die gespeicherte Fläche nicht ungeprüft verwenden.
+- Der Nutzer bestätigte nach Abschluss: `rect2` war das Schlafzimmer. Im
+  schreibfreien Nachlauf meldete der Roboter `charge`; dieselbe `map_id`,
+  `rect2` und die Treppensperre waren weiter vorhanden (`safe`). Die private
+  Zonendatei ist mit `confirmed_by_user` und `observed_after_run` markiert.
 - Gewünscht sind in HA selbst gezeichnete und benannte Rechtecke auf der Karte
   (z. B. Bad), die über eine Roboter-Detailansicht gezielt gestartet werden.
   Das sind keine automatisch erkannten Räume. Die Zone muss an die aktuelle
