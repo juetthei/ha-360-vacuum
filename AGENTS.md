@@ -168,3 +168,23 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 - Für eine zuverlässige Anzeige zuerst die tatsächliche Zonenquelle und die
   Zuordnung zu `mapId`/Koordinaten ermitteln. Eine HA-Überlagerung allein
   konfiguriert keine Sperrzone im Roboter.
+
+## Geplante benannte Bereichsreinigung
+
+- Gewünscht sind in HA selbst gezeichnete und benannte Rechtecke auf der Karte
+  (z. B. Bad), die über eine Roboter-Detailansicht gezielt gestartet werden.
+  Das sind keine automatisch erkannten Räume. Die Zone muss an die aktuelle
+  Gerätekarte (`mapId`, Ursprung und Auflösung) gebunden sein; bei einer neu
+  erzeugten Karte darf ein alter Bereich nicht startbar bleiben.
+- `botslab360==0.7.1` kann erkannte Räume reinigen, bietet aber keine frei
+  gezeichnete Zonenreinigung. Bei den aktuellen S6-Kartendaten war `area: []`
+  und `smartArea` fehlte. Deshalb die Raum-API nicht als Zonen-API ausgeben.
+- Protokollrecherche: `stonegray/360smartai/infoType_fields.md` nennt
+  `setSweepAreas` (21023 + 21005) und `startAreaSweep` nur ohne verifizierte
+  Nutzdaten. Der genaue S6-App-Aufruf muss erst durch statische App-Analyse
+  oder einen späteren, ausdrücklich autorisierten Test geklärt werden.
+  Bis dahin keine produktive Schaltfläche, die einen unbestätigten Befehl sendet.
+- Für die Oberfläche eignet sich eine Lovelace-Subview, zu der die Roboter-Kachel
+  navigiert. Home Assistants eingebaute `picture-elements`-Karte kann gespeicherte
+  Rechtecke zeigen; eine komfortable Zeichnen-/Speichern-Funktion braucht eigene
+  lokale Frontend-Logik und einen Speicherweg in der Integration.
