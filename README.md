@@ -29,6 +29,7 @@ Likely compatible (same cloud API, untested):
 | Return to base / Stop | ✅ |
 | Battery level | ✅ (separate sensor entity) |
 | Current map and no-go zones | ✅ (camera entity; last cleaning path shown when map coordinates match) |
+| Guard a known no-go zone | ✅ (5-minute map check, sensor state and live check before HA start when configured) |
 | Create no-go zones in Home Assistant | 🔜 planned; requires verified device write command and readback |
 | Status (cleaning / docked / paused / returning) | ✅ |
 | Multiple robots (same account) | ✅ |
@@ -44,6 +45,7 @@ Each robot gets one device with vacuum, battery, and map entities:
 | `vacuum.<robot_name>` | Status and controls (start / pause / return to base / stop) |
 | `sensor.<robot_name>_battery` | Battery level in % |
 | `camera.<robot_name>_karte` | Active floor plan with no-go zones in red; last route when coordinates match |
+| `sensor.<robot_name>_treppensperre` | `safe`, `zone_missing`, `wrong_map` or `check_failed` when a map guard is configured |
 
 > **Upgrading from 1.0.x on Home Assistant 2026.9 or newer:** battery used to be
 > the `battery_level` attribute of the vacuum entity. Home Assistant 2026.9

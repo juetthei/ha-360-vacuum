@@ -20,6 +20,7 @@ custom_components/vacuum_360/
 ├── vacuum.py          StateVacuumEntity, Start/Pause/Return/Stop
 ├── sensor.py          Akku-Sensor (device_class battery)
 ├── camera.py          Aktueller Grundriss + Sperrzonen, optionale letzte Fahrspur
+├── map_guard.py       Bekannte Sperrfläche auf aktiver Karte prüfen
 ├── config_flow.py     ConfigFlow (QID+SID), ReauthFlow
 ├── const.py           URLs, infoTypes, MODE_MAP
 ├── manifest.json
@@ -200,6 +201,27 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   blockieren und Sperrzonen auf der aktiven Karte prüfen. Das
   [S6-Handbuch](https://www.botslab360.com/uploads/soft/20230801/1-230P114535aA.pdf)
   bestätigt, dass eine neu erzeugte Karte bisherige Sperrzonen verliert.
+
+## Überwachung der oberen Treppensperre (ab v1.3.5)
+
+- Die Config-Entry-Option `map_guards` enthält für oben die bestätigte `map_id`
+  und die vier Eckpunkte der Treppensperre. Der neue Sensor `Treppensperre`
+  fragt die aktive Karte alle fünf Minuten schreibfrei ab und meldet `safe`,
+  `zone_missing`, `wrong_map` oder `check_failed`. Eine größere rechteckige
+  Sperrzone auf derselben Karte gilt ebenfalls als sicher, wenn sie den
+  bisherigen Bereich vollständig umfasst. Bei neuer Karte nie automatisch
+  eine beliebige rote Fläche als Treppensicherung akzeptieren.
+- `Robot360Vacuum.async_start` lädt vor jedem **HA-Start** die aktuelle Karte
+  erneut und verweigert den Start bei jedem anderen Zustand als `safe`, auch
+  wenn der Sensor noch einen alten Zustand anzeigt. App, Gerätetaste und
+  Hersteller-Zeitpläne werden dadurch nicht blockiert.
+- Auf dem Zielsystem sind zwei Automationen in `automations.yaml` aktiv: Bei
+  `zone_missing`, `wrong_map`, `check_failed` oder `unavailable` erstellen sie
+  eine HA-Dauermeldung und senden an den Notify-Dienst der Handy-App; bei
+  `safe` wird die Dauermeldung entfernt. Der frühere statische
+  `blocked_start_sns`-Eintrag für oben ist leer. Keine Roboteraktion wurde zur
+  Prüfung ausgelöst. Bei einer neu erzeugten Karte nach manueller Kontrolle
+  des Treppenbereichs die `map_guards`-Referenz bewusst aktualisieren.
 
 ## Geplante benannte Bereichsreinigung
 

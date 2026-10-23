@@ -16,6 +16,7 @@ CONF_QID = "qid"
 CONF_SID = "sid"
 CONF_PUSHKEY = "pushkey"
 CONF_BLOCKED_START_SNS = "blocked_start_sns"
+CONF_MAP_GUARDS = "map_guards"
 
 MANUFACTURER = "Qihoo 360"
 MODEL = "360 AI CleanRobot S6"

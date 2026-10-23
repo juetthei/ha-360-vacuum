@@ -11,8 +11,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import CONF_MAP_GUARDS, DOMAIN
 from .coordinator import Robot360Coordinator
+from .map_guard import Robot360MapGuardCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,9 +28,32 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinators: dict[str, Robot360Coordinator] = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [Robot360BatterySensor(coord) for coord in coordinators.values()]
-    )
+    sensors = [Robot360BatterySensor(coord) for coord in coordinators.values()]
+    guards = entry.options.get(CONF_MAP_GUARDS, {})
+    for coord in coordinators.values():
+        if expected := guards.get(coord.sn):
+            guard = Robot360MapGuardCoordinator(coord, expected)
+            await guard.async_refresh()
+            sensors.append(Robot360MapGuardSensor(guard))
+    async_add_entities(sensors)
+
+
+class Robot360MapGuardSensor(CoordinatorEntity[Robot360MapGuardCoordinator], SensorEntity):
+    _attr_has_entity_name = True
+    _attr_name = "Treppensperre"
+    _attr_icon = "mdi:shield-home"
+
+    def __init__(self, coordinator: Robot360MapGuardCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.robot.sn}_map_guard"
+
+    @property
+    def device_info(self) -> dict:
+        return self.coordinator.robot.device_info
+
+    @property
+    def native_value(self) -> str:
+        return self.coordinator.data or "check_failed"
 
 
 class Robot360BatterySensor(CoordinatorEntity[Robot360Coordinator], SensorEntity):

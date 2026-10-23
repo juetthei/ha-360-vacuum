@@ -11,8 +11,10 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_BLOCKED_START_SNS, DOMAIN, MODE_MAP
+from .api import Api360Error
+from .const import CONF_BLOCKED_START_SNS, CONF_MAP_GUARDS, DOMAIN, MODE_MAP
 from .coordinator import Robot360Coordinator
+from .map_guard import map_guard_state
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,7 +46,9 @@ async def async_setup_entry(
 ) -> None:
     coordinators: dict[str, Robot360Coordinator] = hass.data[DOMAIN][entry.entry_id]
     blocked = set(entry.options.get(CONF_BLOCKED_START_SNS, []))
-    async_add_entities([Robot360Vacuum(coord, coord.sn in blocked) for coord in coordinators.values()])
+    guards = entry.options.get(CONF_MAP_GUARDS, {})
+    async_add_entities([Robot360Vacuum(coord, coord.sn in blocked, guards.get(coord.sn))
+                        for coord in coordinators.values()])
 
 
 class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
@@ -52,10 +56,12 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
     _attr_has_entity_name = True
     _attr_name = None
 
-    def __init__(self, coordinator: Robot360Coordinator, start_blocked: bool = False) -> None:
+    def __init__(self, coordinator: Robot360Coordinator, start_blocked: bool = False,
+                 map_guard: dict | None = None) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = coordinator.sn
         self._start_blocked = start_blocked
+        self._map_guard = map_guard
         if start_blocked:
             self._attr_supported_features = _FEATURES & ~VacuumEntityFeature.START
         self._optimistic_activity: VacuumActivity | None = None
@@ -106,6 +112,14 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
     async def async_start(self) -> None:
         if self._start_blocked:
             raise HomeAssistantError("Start für diesen Roboter in Home Assistant gesperrt")
+        if self._map_guard:
+            try:
+                current = await self.coordinator.api.get_current_map(self.coordinator.sn)
+                state = map_guard_state(current, self._map_guard)
+            except (Api360Error, KeyError, TypeError, ValueError) as exc:
+                raise HomeAssistantError("Treppensperre konnte nicht geprüft werden") from exc
+            if state != "safe":
+                raise HomeAssistantError(f"Start verweigert: Treppensperre {state}")
         self._set_optimistic(VacuumActivity.CLEANING)
         await self.coordinator.api.start(self.coordinator.sn)
         await self.coordinator.async_request_refresh()
