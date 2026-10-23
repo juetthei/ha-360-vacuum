@@ -1,5 +1,6 @@
 import logging
 
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
@@ -8,10 +9,20 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import Api360, Api360AuthError, Api360Error
 from .const import CONF_PUSHKEY, CONF_QID, CONF_SID, DOMAIN
 from .coordinator import Robot360Coordinator
+from .zones import SERVICE_CLEAN_ZONE, SERVICE_SCHEMA, async_clean_zone
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["vacuum", "sensor", "camera"]
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    async def handle_clean_zone(call):
+        await async_clean_zone(hass, call)
+
+    hass.services.async_register(DOMAIN, SERVICE_CLEAN_ZONE, handle_clean_zone,
+                                 schema=SERVICE_SCHEMA)
+    return True
 
 
 def _sn_from_device(dev: dict) -> str | None:

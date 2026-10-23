@@ -32,6 +32,17 @@ class MapDecodeTest(unittest.TestCase):
         self.assertLess(image.getpixel((0, 0))[0], image.getpixel((0, 0))[1])
         self.assertGreater(image.getpixel((8, 8))[0], image.getpixel((8, 8))[1])
 
+    def test_normal_cleaning_polygon_is_drawn_blue(self):
+        record = {
+            "width": 4, "height": 4, "resolution": 1, "x_min": 0, "y_min": 0,
+            "map": base64.b64encode(b"\xf0\x01" + b"\xff" * 16).decode(),
+            "area": [{"active": "normal", "vertexs": [
+                [1000, 1000], [3000, 1000], [3000, 3000], [1000, 3000],
+            ]}],
+        }
+        image = Image.open(BytesIO(_render_map(record)))
+        self.assertGreater(image.getpixel((8, 8))[2], image.getpixel((8, 8))[0])
+
     def test_current_map_uses_read_only_request(self):
         class Push:
             async def __aenter__(self):

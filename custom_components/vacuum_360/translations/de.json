@@ -28,5 +28,17 @@
       "already_configured": "Dieser Account ist bereits konfiguriert",
       "reauth_successful": "Authentifizierung erfolgreich erneuert"
     }
+  },
+  "services": {
+    "clean_zone": {
+      "name": "Gespeicherte Zone reinigen",
+      "description": "Reinigt eine bestätigte Fläche auf der aktiven Roboterkarte.",
+      "fields": {
+        "zone_id": {
+          "name": "Zonen-ID",
+          "description": "Kennung der gespeicherten Reinigungsfläche."
+        }
+      }
+    }
   }
 }

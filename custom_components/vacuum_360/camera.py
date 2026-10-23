@@ -159,6 +159,8 @@ def _render_map(record: dict) -> bytes:
         ]
         if area.get("active") == "forbid" and len(area_points) >= 3:
             zone_draw.polygon(area_points, fill=(224, 42, 42, 100), outline=(224, 42, 42, 255))
+        elif area.get("active") == "normal" and len(area_points) >= 3:
+            zone_draw.polygon(area_points, fill=(45, 125, 220, 75), outline=(45, 125, 220, 255))
         elif area.get("active") == "line" and len(area_points) == 2:
             zone_draw.line(area_points, fill=(224, 42, 42, 255), width=2)
     image = Image.alpha_composite(image.convert("RGBA"), zones).convert("RGB")

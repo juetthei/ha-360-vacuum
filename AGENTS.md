@@ -21,6 +21,7 @@ custom_components/vacuum_360/
 ├── sensor.py          Akku-Sensor (device_class battery)
 ├── camera.py          Aktueller Grundriss + Sperrzonen, optionale letzte Fahrspur
 ├── map_guard.py       Bekannte Sperrfläche auf aktiver Karte prüfen
+├── zones.py           Bestätigte Rechtecke gegen Live-Karte prüfen und starten
 ├── config_flow.py     ConfigFlow (QID+SID), ReauthFlow
 ├── const.py           URLs, infoTypes, MODE_MAP
 ├── manifest.json
@@ -268,6 +269,21 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   navigiert. Home Assistants eingebaute `picture-elements`-Karte kann gespeicherte
   Rechtecke zeigen; eine komfortable Zeichnen-/Speichern-Funktion braucht eigene
   lokale Frontend-Logik und einen Speicherweg in der Integration.
+- Ab v1.4.0 lädt `vacuum_360.clean_zone` eine bestätigte Zone aus der privaten
+  HA-Storage-Datei. Der Dienst prüft vor dem Start die aktuelle `mapId`, die
+  Treppensperre und den Roboterstatus (`charge`, `fullcharge`, `idle`, `standby`).
+  Dann sendet `Api360.clean_zone` den aus der App rekonstruierten Sammelbefehl.
+  **Der echte Zonenstart ist weiterhin nicht am Gerät getestet.** Bei Fehlern
+  keine Vollreinigung als Fallback auslösen. Mocktests prüfen Nutzdaten und
+  Startverweigerung; ein schreibfreier Live-Durchlauf mit echtem Status und
+  Karte endete vor dem durch Mock ersetzten Startbefehl erfolgreich. Bei einem
+  ersten Nutzer-Test Treppe physisch schützen. Die bei der App-Bereichsreinigung
+  beobachteten Modi `sweep` und `reAppointClean` werden als Reinigung angezeigt.
+- Die Pi-Kachel oben navigiert zur Lovelace-Subview `robot-oben`. Darin sind
+  Schlafzimmer aktiv und Flur, Bad, Büro, Kinderzimmer als nicht startbare
+  Platzhalter angelegt. Die aktuelle `normal`-Fläche wird auf der Kamerakarte
+  blau gezeichnet, `forbid` bleibt rot. Für die vier weiteren Räume zuerst
+  echte Rechtecke auf der aktiven Karte erfassen; keine Koordinaten erfinden.
 
 ## Vorübergehende Startsperre für gefährdete Etagen
 

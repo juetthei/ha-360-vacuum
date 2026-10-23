@@ -1,0 +1,6 @@
+clean_zone:
+  fields:
+    zone_id:
+      required: true
+      selector:
+        text:

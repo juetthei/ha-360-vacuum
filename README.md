@@ -34,7 +34,7 @@ Likely compatible (same cloud API, untested):
 | Status (cleaning / docked / paused / returning) | ✅ |
 | Multiple robots (same account) | ✅ |
 | Real-time status via TCP push | 🔜 planned |
-| Room/zone cleaning | 🔜 planned |
+| Saved rectangular zone cleaning | ⚠️ experimental; confirmed map and stair zone required before start |
 
 ### Entities
 
@@ -46,6 +46,12 @@ Each robot gets one device with vacuum, battery, and map entities:
 | `sensor.<robot_name>_battery` | Battery level in % |
 | `camera.<robot_name>_karte` | Active floor plan with no-go zones in red; last route when coordinates match |
 | `sensor.<robot_name>_treppensperre` | `safe`, `zone_missing`, `wrong_map` or `check_failed` when a map guard is configured |
+
+Saved cleaning rectangles can be started with `vacuum_360.clean_zone` and a
+`zone_id`. The integration checks the active map, the configured no-go zone and
+the robot's idle/docked status before sending the area command. The command
+format has been checked against the 360 app and mocked tests; a real zone start
+has not yet been performed with this integration.
 
 > **Upgrading from 1.0.x on Home Assistant 2026.9 or newer:** battery used to be
 > the `battery_level` attribute of the vacuum entity. Home Assistant 2026.9

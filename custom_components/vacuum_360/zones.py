@@ -1,0 +1,63 @@
+"""Start user-confirmed cleaning rectangles saved for an active robot map."""
+
+import asyncio
+
+import voluptuous as vol
+
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers.storage import Store
+
+from .api import Api360, Api360Error
+from .const import CONF_MAP_GUARDS, DOMAIN
+from .map_guard import map_guard_state
+
+SERVICE_CLEAN_ZONE = "clean_zone"
+ZONE_STORE = "vacuum_360_saved_zones"
+SERVICE_SCHEMA = vol.Schema({vol.Required("zone_id"): str})
+
+
+async def async_start_saved_zone(api: Api360, sn: str, zone: dict, guard: dict) -> None:
+    """Validate map and stair protection immediately before sending the command."""
+    if not zone.get("confirmed_by_user"):
+        raise ServiceValidationError("Reinigungsfläche wurde noch nicht bestätigt")
+    try:
+        current = await api.get_current_map(sn)
+    except Api360Error as exc:
+        raise HomeAssistantError("Aktuelle Karte konnte nicht geprüft werden") from exc
+    if map_guard_state(current, guard) != "safe":
+        raise HomeAssistantError("Treppensperre fehlt oder Karte hat gewechselt")
+    if str(current.get("mapId")) != str(zone.get("map_id")):
+        raise HomeAssistantError("Gespeicherte Reinigungsfläche gehört zu einer anderen Karte")
+    vertices = zone.get("vertices")
+    if not isinstance(vertices, list) or len(vertices) != 4:
+        raise ServiceValidationError("Reinigungsfläche hat keine vier Eckpunkte")
+    try:
+        status = await api.get_status(sn)
+    except Api360Error as exc:
+        raise HomeAssistantError("Roboterstatus konnte nicht geprüft werden") from exc
+    if status.get("mode") not in {"charge", "fullcharge", "idle", "standby"}:
+        raise HomeAssistantError("Roboter ist nicht bereit für eine Zonenreinigung")
+    await api.clean_zone(sn, int(current["mapId"]), zone)
+
+
+async def async_clean_zone(hass: HomeAssistant, call: ServiceCall) -> None:
+    data = await Store(hass, 1, ZONE_STORE).async_load()
+    zones = (data or {}).get("zones", [])
+    zone = next((item for item in zones if item.get("id") == call.data["zone_id"]), None)
+    if zone is None:
+        raise ServiceValidationError("Reinigungsfläche ist nicht gespeichert")
+    sn = zone["sn"]
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        robot = hass.data.get(DOMAIN, {}).get(entry.entry_id, {}).get(sn)
+        guard = entry.options.get(CONF_MAP_GUARDS, {}).get(sn)
+        if robot and guard:
+            locks = hass.data.setdefault(f"{DOMAIN}_zone_locks", {})
+            lock = locks.setdefault(sn, asyncio.Lock())
+            if lock.locked():
+                raise HomeAssistantError("Reinigungsauftrag läuft bereits an")
+            async with lock:
+                await async_start_saved_zone(robot.api, sn, zone, guard)
+                await robot.async_request_refresh()
+            return
+    raise ServiceValidationError("Roboter oder Treppensperren-Prüfung nicht verfügbar")

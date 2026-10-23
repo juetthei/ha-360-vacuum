@@ -27,6 +27,8 @@ MODE_MAP: dict[str, str] = {
     "charging":    "docked",
     "fullcharge":  "docked",
     "smartClean":  "cleaning",
+    "sweep":       "cleaning",
+    "reAppointClean": "cleaning",
     "aroundClean": "cleaning",
     "spotClean":   "cleaning",
     "totalClean":  "cleaning",
