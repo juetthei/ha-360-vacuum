@@ -222,6 +222,11 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   `blocked_start_sns`-Eintrag für oben ist leer. Keine Roboteraktion wurde zur
   Prüfung ausgelöst. Bei einer neu erzeugten Karte nach manueller Kontrolle
   des Treppenbereichs die `map_guards`-Referenz bewusst aktualisieren.
+- Die Pi-Lovelace-Kachel hatte zusätzlich unabhängig von der Integration den
+  Text `Start gesperrt` und nur `return_home` in `vacuum-commands`. Nach der
+  Freigabe der überwachten HA-Starts wurden dort `Robot: oben` und
+  `start_pause` + `return_home` wiederhergestellt. Bei UI-Sperren stets auch
+  die Lovelace-Kartenkonfiguration prüfen.
 
 ## Geplante benannte Bereichsreinigung
 
