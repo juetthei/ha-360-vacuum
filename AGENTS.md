@@ -230,6 +230,14 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 
 ## Geplante benannte Bereichsreinigung
 
+- Während einer vom Nutzer gestarteten Schlafzimmer-Reinigung oben lieferte
+  die aktive Karte neben der Treppensperre genau eine gezeichnete Fläche
+  `active: "normal"`, `id: 2`, `name: "rect2"`. Deren vier Millimeter-Eckpunkte
+  wurden als **Schlafzimmer oben** in der privaten HA-Datei
+  `/config/.storage/vacuum_360_saved_zones` gespeichert, zusammen mit der
+  aktiven `map_id` und Gerätezuordnung. Datei gehört nicht ins öffentliche
+  Repo. Es gibt noch keinen Startknopf; der Speicherstand löst keinen Auftrag
+  aus. Bei neuer Karte die gespeicherte Fläche nicht ungeprüft verwenden.
 - Gewünscht sind in HA selbst gezeichnete und benannte Rechtecke auf der Karte
   (z. B. Bad), die über eine Roboter-Detailansicht gezielt gestartet werden.
   Das sind keine automatisch erkannten Räume. Die Zone muss an die aktuelle
