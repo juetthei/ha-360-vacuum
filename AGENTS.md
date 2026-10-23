@@ -280,11 +280,10 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   ersten Nutzer-Test Treppe physisch schützen. Die bei der App-Bereichsreinigung
   beobachteten Modi `sweep` und `reAppointClean` werden als Reinigung angezeigt.
 - Die Pi-Kachel oben navigiert zur Lovelace-Subview `robot-oben`. Darin sind
-  Schlafzimmer und Flur als Knöpfe aktiv. Bad, Büro und Kinderzimmer bleiben
-  nicht startbare Platzhalter; das Bad ist zwar gespeichert, sein Knopf aber
-  noch inaktiv. Die aktuelle `normal`-Fläche wird auf der Kamerakarte blau
-  gezeichnet, `forbid` bleibt rot. Für Büro und Kinderzimmer zuerst echte
-  Rechtecke auf der aktiven Karte erfassen; keine Koordinaten erfinden.
+  Schlafzimmer, Flur und Bad als Knöpfe aktiv. Büro und Kinderzimmer bleiben
+  nicht startbare Platzhalter. Die aktuelle `normal`-Fläche wird auf der
+  Kamerakarte blau gezeichnet, `forbid` bleibt rot. Für Büro und Kinderzimmer
+  zuerst echte Rechtecke auf der aktiven Karte erfassen; keine Koordinaten erfinden.
 
 - Stand 2026-10-23: Der Nutzer bestätigte „Bad oben“ anhand der zuletzt
   abgeschlossenen Fahrt. Alle 757 Fahrspurpunkte lagen im damals aktiven
@@ -301,9 +300,10 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   werden als `extraAreas` in einem einzigen `30000`-Befehl übergeben.
   Vorher werden alle vier Millimeter-Eckpunkte und eindeutige Teilflächen-IDs
   geprüft; die bestehende HA-Startsperre gilt ebenfalls. Die 18 Mocktests
-  liefen im HA-Container erfolgreich. Auf dem Zielsystem war v1.5.0 installiert
-  und der Flur-Knopf ruft `vacuum_360.clean_zone` mit `flur_oben` auf.
-  Nach dem HA-Neustart: HTTP 200 und Treppensperren-Sensor `safe`.
+  liefen im HA-Container erfolgreich. Auf dem Zielsystem war v1.5.0 installiert.
+  Flur und Bad rufen `vacuum_360.clean_zone` mit `flur_oben` bzw. `bad_oben`
+  auf. Nach dem HA-Neustart: HTTP 200, Treppensperren-Sensor `safe` und
+  oberer Roboter `docked`.
   Ein echter Zonenstart bleibt ungetestet; kein Befehl wurde ausgelöst.
 
 ## Vorübergehende Startsperre für gefährdete Etagen
