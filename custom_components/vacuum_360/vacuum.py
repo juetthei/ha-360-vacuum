@@ -7,10 +7,11 @@ from homeassistant.components.vacuum import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MODE_MAP
+from .const import CONF_BLOCKED_START_SNS, DOMAIN, MODE_MAP
 from .coordinator import Robot360Coordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,7 +43,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinators: dict[str, Robot360Coordinator] = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([Robot360Vacuum(coord) for coord in coordinators.values()])
+    blocked = set(entry.options.get(CONF_BLOCKED_START_SNS, []))
+    async_add_entities([Robot360Vacuum(coord, coord.sn in blocked) for coord in coordinators.values()])
 
 
 class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
@@ -50,9 +52,12 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
     _attr_has_entity_name = True
     _attr_name = None
 
-    def __init__(self, coordinator: Robot360Coordinator) -> None:
+    def __init__(self, coordinator: Robot360Coordinator, start_blocked: bool = False) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = coordinator.sn
+        self._start_blocked = start_blocked
+        if start_blocked:
+            self._attr_supported_features = _FEATURES & ~VacuumEntityFeature.START
         self._optimistic_activity: VacuumActivity | None = None
         self._optimistic_cycles_left: int = 0
 
@@ -99,6 +104,8 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
         self.async_write_ha_state()
 
     async def async_start(self) -> None:
+        if self._start_blocked:
+            raise HomeAssistantError("Start für diesen Roboter in Home Assistant gesperrt")
         self._set_optimistic(VacuumActivity.CLEANING)
         await self.coordinator.api.start(self.coordinator.sn)
         await self.coordinator.async_request_refresh()

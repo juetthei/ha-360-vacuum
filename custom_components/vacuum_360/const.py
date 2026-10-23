@@ -15,6 +15,7 @@ SCAN_INTERVAL = 30
 CONF_QID = "qid"
 CONF_SID = "sid"
 CONF_PUSHKEY = "pushkey"
+CONF_BLOCKED_START_SNS = "blocked_start_sns"
 
 MANUFACTURER = "Qihoo 360"
 MODEL = "360 AI CleanRobot S6"

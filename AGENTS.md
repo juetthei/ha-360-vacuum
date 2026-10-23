@@ -197,3 +197,16 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   navigiert. Home Assistants eingebaute `picture-elements`-Karte kann gespeicherte
   Rechtecke zeigen; eine komfortable Zeichnen-/Speichern-Funktion braucht eigene
   lokale Frontend-Logik und einen Speicherweg in der Integration.
+
+## Vorübergehende Startsperre für gefährdete Etagen
+
+- Ab v1.3.1 sperrt die Config-Entry-Option `blocked_start_sns` (Liste von
+  Geräte-Seriennummern) `vacuum.start` für ausgewählte Roboter. Die START-
+  Fähigkeit wird bei diesen Entities ausgeblendet; `async_start` prüft
+  zusätzlich vor jedem API-Aufruf und wirft einen HA-Fehler. Für andere
+  Roboter bleiben Start und Status unverändert.
+- Auf dem Zielsystem ist der Zeitplan für den oberen Roboter per
+  `initial_state: false` abgeschaltet. Die Startsperre gilt nur für HA;
+  App, Gerätetaste und herstellereigene Zeitpläne bleiben davon unabhängig.
+  Vor einem erneuten Freigeben zuerst die aktuelle Karte, Treppensicherung
+  und physischen Schutz prüfen.
