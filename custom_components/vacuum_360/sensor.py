@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Feldnamen variieren je nach Firmware-Version, daher flexibles Parsing
 # (gleiches Muster wie coordinator._extract_status).
-_BATTERY_KEYS = ("elec", "battery", "batteryLevel", "power")
+_BATTERY_KEYS = ("elecReal", "elec", "battery", "batteryLevel", "power")
 
 
 async def async_setup_entry(

@@ -4,7 +4,7 @@ from homeassistant import config_entries
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import Api360, Api360AuthError, Api360Error
-from .const import CONF_QID, CONF_SID, DOMAIN
+from .const import CONF_PUSHKEY, CONF_QID, CONF_SID, DOMAIN
 
 
 class Robot360ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -16,6 +16,7 @@ class Robot360ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             qid = user_input[CONF_QID].strip()
             sid = user_input[CONF_SID].strip()
+            pushkey = user_input[CONF_PUSHKEY].strip()
 
             session = async_get_clientsession(self.hass)
             api = Api360(session, qid, sid)
@@ -35,7 +36,7 @@ class Robot360ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     count = len(devices)
                     return self.async_create_entry(
                         title=f"360 Vacuum ({count} Gerät{'e' if count != 1 else ''})",
-                        data={CONF_QID: qid, CONF_SID: sid},
+                        data={CONF_QID: qid, CONF_SID: sid, CONF_PUSHKEY: pushkey},
                     )
 
         return self.async_show_form(
@@ -43,6 +44,7 @@ class Robot360ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({
                 vol.Required(CONF_QID): str,
                 vol.Required(CONF_SID): str,
+                vol.Required(CONF_PUSHKEY): str,
             }),
             errors=errors,
         )
@@ -58,6 +60,7 @@ class Robot360ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             qid = entry.data[CONF_QID]
             sid = user_input[CONF_SID].strip()
+            pushkey = user_input[CONF_PUSHKEY].strip()
 
             session = async_get_clientsession(self.hass)
             api = Api360(session, qid, sid)
@@ -68,11 +71,13 @@ class Robot360ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_auth"
             else:
                 return self.async_update_reload_and_abort(
-                    entry, data_updates={CONF_SID: sid}
+                    entry, data_updates={CONF_SID: sid, CONF_PUSHKEY: pushkey}
                 )
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=vol.Schema({vol.Required(CONF_SID): str}),
+            data_schema=vol.Schema({
+                vol.Required(CONF_SID): str, vol.Required(CONF_PUSHKEY): str
+            }),
             errors=errors,
         )

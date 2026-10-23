@@ -1,6 +1,11 @@
+import asyncio
 import json
 import logging
+import uuid
+
 import aiohttp
+from botslab360.exceptions import ApiError
+from botslab360.protocol import PushClient
 
 from .const import API_CMD, API_DEVICES, DEV_TYPE, INFO_START, INFO_RETURN, INFO_PAUSE, INFO_STATUS
 
@@ -28,10 +33,13 @@ class Api360AuthError(Api360Error):
 
 
 class Api360:
-    def __init__(self, session: aiohttp.ClientSession, qid: str, sid: str) -> None:
+    def __init__(
+        self, session: aiohttp.ClientSession, qid: str, sid: str, pushkey: str | None = None
+    ) -> None:
         self._session = session
         self.qid = qid
         self.sid = sid
+        self.pushkey = pushkey
 
     def _headers(self) -> dict:
         return {
@@ -107,4 +115,45 @@ class Api360:
         await self.send_cmd(sn, INFO_PAUSE, {"cmd": "continue"})
 
     async def get_status(self, sn: str) -> dict:
-        return await self.send_cmd(sn, INFO_STATUS)
+        if not self.pushkey:
+            return await self.send_cmd(sn, INFO_STATUS)
+
+        task_id = str(uuid.uuid4())
+        payload = {
+            "sn": sn,
+            "infoType": INFO_STATUS,
+            "devType": DEV_TYPE,
+            "data": "",
+            "taskid": task_id,
+            "from": "mpc_and",
+            "appVer": "11.0.0",
+            "lang": "de_DE",
+        }
+        try:
+            async with PushClient(self.sid, self.pushkey) as push:
+                async with self._session.post(
+                    API_CMD, headers=self._headers(), data=payload, timeout=_TIMEOUT
+                ) as resp:
+                    result = await resp.json(content_type=None)
+                self._check_errno(result, "status")
+                async with asyncio.timeout(25):
+                    while True:
+                        status = _status_from_push(await push.read_event(), sn, task_id)
+                        if status is not None:
+                            return status
+        except (ApiError, aiohttp.ClientError, OSError, TimeoutError, ValueError) as exc:
+            raise Api360Error("Push-Status konnte nicht abgerufen werden") from exc
+
+
+def _status_from_push(event: dict, sn: str, task_id: str) -> dict | None:
+    if event.get("sn") != sn or event.get("taskid") != task_id:
+        return None
+    body = event.get("data")
+    if isinstance(body, str):
+        body = json.loads(body)
+    if not isinstance(body, dict) or str(body.get("infoType")) != INFO_STATUS:
+        return None
+    status = body.get("data")
+    if isinstance(status, str):
+        status = json.loads(status)
+    return status if isinstance(status, dict) else None

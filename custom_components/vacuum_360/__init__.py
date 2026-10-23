@@ -6,7 +6,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import Api360, Api360AuthError, Api360Error
-from .const import CONF_QID, CONF_SID, DOMAIN
+from .const import CONF_PUSHKEY, CONF_QID, CONF_SID, DOMAIN
 from .coordinator import Robot360Coordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,7 +30,9 @@ def _name_from_device(dev: dict, sn: str) -> str:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = async_get_clientsession(hass)
-    api = Api360(session, entry.data[CONF_QID], entry.data[CONF_SID])
+    api = Api360(
+        session, entry.data[CONF_QID], entry.data[CONF_SID], entry.data.get(CONF_PUSHKEY)
+    )
 
     try:
         devices = await api.get_devices()

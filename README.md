@@ -46,7 +46,9 @@ Each robot gets one device with two entities:
 > the `battery_level` attribute of the vacuum entity. Home Assistant 2026.9
 > removed battery support from vacuum entities entirely, so it is now its own
 > sensor entity. Dashboards or automations reading the old attribute must be
-> pointed at `sensor.<robot_name>_battery` instead.
+> pointed at `sensor.<robot_name>_battery` instead. The sensor reads the live
+> battery value from the encrypted 360 push channel and needs the `pushkey`
+> from the same app session as QID and SID.
 
 ---
 
@@ -82,7 +84,7 @@ Each robot gets one device with two entities:
 
 ## Getting Your Credentials (Android + ADB)
 
-The integration authenticates using two values from your 360 account session: **QID** and **SID**. These are extracted from the running app via ADB.
+The integration uses **QID**, **SID**, and **push key** from the same 360 app session. The push key decrypts battery and other status messages. Extract all three from the running app via ADB.
 
 ### Step 1 — Enable USB Debugging on your phone
 
@@ -101,7 +103,7 @@ adb devices
 
 You should see your device listed (not "unauthorized"). If it says "unauthorized", check your phone for a popup asking to allow USB debugging — tap **Allow**.
 
-### Step 3 — Extract QID and SID
+### Step 3 — Extract QID, SID, and push key
 
 Open the 360 app on your phone and make sure you are logged in. Then run:
 
@@ -118,8 +120,9 @@ D MyPushMessageListener.java: push_debug pushkey:a1b2c3d4e5f6789012345678abcdef0
 Your values are:
 - **QID** — the 10-digit number after `qid:` (e.g. `1234567890`)
 - **SID** — the 32-character hex string after `sid:` (e.g. `fedcba9876543210fedcba9876543210`)
+- **Push key** — the 32-character value after `pushkey:`
 
-You can ignore `pushkey` for now (reserved for future real-time status).
+Keep all three values private; the push key is required for battery status.
 
 > **Tip:** If nothing appears, close and reopen the 360 app, or log out and back in.
 
@@ -140,14 +143,14 @@ adb logcat | grep MyPushMessageListener
 
 1. Go to **Settings → Integrations → Add Integration**
 2. Search for **360 Vacuum Robot**
-3. Enter your **QID** and **SID**
+3. Enter your **QID**, **SID**, and **push key**
 4. Click Submit — the integration will discover all robots on your account automatically
 
 ---
 
 ## Session Expiry
 
-The SID session expires approximately every 12 hours. When this happens, Home Assistant will show a **Re-authenticate** notification for the integration. Simply extract a new SID via ADB (Step 3 above) and enter it in the prompt.
+The SID session expires approximately every 12 hours. When this happens, Home Assistant will show a **Re-authenticate** notification for the integration. Extract a new SID and push key from the same ADB log entry (Step 3 above) and enter both in the prompt.
 
 ---
 
@@ -157,7 +160,7 @@ The SID session expires approximately every 12 hours. When this happens, Home As
 Make sure the `custom_components/vacuum_360/` directory is in the correct location and contains all files. Check HA logs for errors.
 
 ### "Authentication failed"
-Your SID has expired or is incorrect. Extract a fresh SID via ADB and re-enter it.
+Your SID has expired or is incorrect. Extract a fresh SID and push key from the same ADB log entry and re-enter both.
 
 ### Status always shows "unavailable" or "idle"
 Enable debug logging to see the raw API response:

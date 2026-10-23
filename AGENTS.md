@@ -117,3 +117,16 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   `placix/python-botslab360/src/botslab360/protocol.py` auf GitHub. Letzteres
   berücksichtigt TCP-Fragmentierung, Bind-Bestätigung, AES-CBC und das Statusfeld
   `elecReal`. Keine vollständigen Push-Nachrichten oder Schlüssel protokollieren.
+
+## Push-Status und Batterie
+
+- Ab Version 1.2.0 wird `botslab360==0.7.1` für den verschlüsselten Push-Empfang
+  benötigt. Der zur SID gehörende `pushkey` wird als geheimes Feld im HA-Config-Entry
+  gespeichert und bei Reauth zusammen mit der SID erneuert.
+- `Api360.get_status` verbindet sich vor der reinen Statusabfrage `20001` mit
+  dem Push-Kanal, gleicht Seriennummer und Task-ID ab und liefert u. a.
+  `elecReal` an den Batterie-Sensor. `fullcharge` wird als `docked` angezeigt.
+- Live geprüft: beide Geräte meldeten über den neuen Code `elecReal: 100` und
+  `mode: fullcharge`; dabei wurde kein Start-, Rückkehr- oder Tonbefehl gesendet.
+- Isolationstest: `python -m unittest discover -s tests` in einer Umgebung mit
+  Home Assistant und der Manifest-Abhängigkeit. Der Test nutzt nur Mock-Antworten.

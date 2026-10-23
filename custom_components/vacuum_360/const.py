@@ -14,6 +14,7 @@ SCAN_INTERVAL = 30
 
 CONF_QID = "qid"
 CONF_SID = "sid"
+CONF_PUSHKEY = "pushkey"
 
 MANUFACTURER = "Qihoo 360"
 MODEL = "360 AI CleanRobot S6"
@@ -22,6 +23,7 @@ MODEL = "360 AI CleanRobot S6"
 MODE_MAP: dict[str, str] = {
     "charge":      "docked",
     "charging":    "docked",
+    "fullcharge":  "docked",
     "smartClean":  "cleaning",
     "aroundClean": "cleaning",
     "spotClean":   "cleaning",
