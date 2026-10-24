@@ -350,7 +350,9 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   sendet nur ganze Stufen 0–10 mit exakt `setVolume`, weil `21024` auch
   `reboot` und `cancleMap` (Karte löschen) trägt. In beiden Detailansichten
   als kleines Tile ohne Feature in der Statuszeile (oben: Akku,
-  Treppensperre, Lautstärke); Einstellen per Tippen im Detaildialog. Am Gerät noch nicht gesetzt.
+  Treppensperre, Lautstärke); Einstellen per Tippen im Detaildialog.
+- Am 2026-10-24 oben am Gerät bestätigt: `set_volume(8)` → Status `vol: 8`,
+  Ortung hörbar lauter; `set_volume(1)` → `vol: 1`. Endstand wieder 10 %. Am Gerät noch nicht gesetzt.
 
 ## Detailansicht unten (Stand 2026-10-24)
 
