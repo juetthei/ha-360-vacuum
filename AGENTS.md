@@ -281,7 +281,10 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   beobachteten Modi `sweep` und `reAppointClean` werden als Reinigung angezeigt.
 - Die Pi-Kachel oben navigiert zur Lovelace-Subview `robot-oben`. Darin sind
   Schlafzimmer, Flur, Bad, Büro und Kinderzimmer als Knöpfe aktiv
-  (Büro und Kinderzimmer seit 2026-10-24). Die aktuelle `normal`-Fläche wird auf der
+  (Büro und Kinderzimmer seit 2026-10-24).
+  Die Subview nutzt seit 2026-10-24 `custom:grid-layout` (layout-card):
+  links die Karte, rechts Roboter-Kachel, Akku/Treppensperre als Tiles und
+  die Bereichsknöpfe (3 Spalten); unter 800 px Breite untereinander. Die aktuelle `normal`-Fläche wird auf der
   Kamerakarte blau gezeichnet, `forbid` bleibt rot. Neue Zonen nur aus
   echten Rechtecken der aktiven Karte erfassen; keine Koordinaten erfinden.
 
