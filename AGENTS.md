@@ -356,15 +356,27 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 - Subview `robot-unten` (gleiches `grid-layout` wie oben, Pi-Kachel
   „Robot: unten“ navigiert dorthin). Entities: `vacuum.360_robot_unten`,
   `sensor.360_robot_batterie`, `camera.360_robot_karte`. Keine Treppensperre.
-- Platzhalter ohne Aktion: Küche, Flur, Esszimmer, Wohnzimmer. Zonen werden
-  später eingemessen. Das Bad (in Sperrzone) bekommt auf Wunsch keinen Knopf.
+- Das Bad (in Sperrzone) bekommt auf Wunsch keinen Knopf.
+- Stand 2026-10-24, v1.9.0: Küche, Flur (zwei Rechtecke), Wohnzimmer und
+  Esszimmer unten während vom Nutzer gestarteter App-Fahrten gelesen und als
+  `*_unten` gespeichert. Die App legte Küche, Flur und Wohnzimmer als
+  `active: "depth"` an, das Esszimmer als `normal`; `clean_zone` sendet den
+  gespeicherten Modus unverändert (nur `normal`/`depth` erlaubt).
+- Neue Rechtecke erscheinen in `30000`/`20002` erst einige Sekunden nach dem
+  App-Start; eine sofortige Abfrage kann noch die vorige Fläche zeigen.
+  Nur gezeichnete, nicht abgeschickte Rechtecke sind gar nicht sichtbar.
+- `map_guards` akzeptiert neben `vertices` eine Liste `areas`; jede muss als
+  `forbid`-Rechteck vorhanden sein. Unten: `name: "Sperrzonen"`, beide
+  vorhandenen Sperrzonen (Bad, Kellertür) → `sensor.360_robot_sperrzonen`.
+  Gilt auch für `vacuum.start` unten (inkl. HA-Zeitplan). Live berechnet:
+  oben und unten `safe`. Für unten gibt es keine Warn-Automation.
+- Config-Entry-Optionen nur bei gestopptem HA ändern (`core.config_entries`
+  gehört root): `docker stop`, Änderung per `docker run --rm -i -v
+  <config>:/config --entrypoint python3 <HA-Image> -`, dann `docker start`.
 - Aktive Karte unten: feste `mapId` (Wert im Config-Entry), zwei `forbid`-Rechtecke. Das Bad
   liegt laut Nutzer in einer Sperrzone; eine Zonenreinigung dort ist bei
   aktiver Sperre nicht zu erwarten und ein Schreibbefehl für Sperrzonen ist
   nicht verifiziert.
-- `clean_zone` verlangt derzeit für den Roboter einen `map_guards`-Eintrag;
-  unten gibt es keinen, der Dienst würde dort verweigern. Vor dem
-  Freischalten mit dem Nutzer klären, welche Prüfung unten gelten soll.
 
 ## Vorübergehende Startsperre für gefährdete Etagen
 
