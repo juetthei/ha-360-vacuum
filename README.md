@@ -28,6 +28,7 @@ Likely compatible (same cloud API, untested):
 | Pause | ✅ |
 | Return to base / Stop | ✅ |
 | Battery level | ✅ (separate sensor entity) |
+| Volume (0–100 % in 10 % steps) | ⚠️ experimental; `number` entity, `21024 setVolume` |
 | Locate (robot plays a sound) | ✅ (`21020`, command from `botslab360`) |
 | Suction power (Leise / Standard / Power) | ⚠️ experimental; `vacuum.set_fan_speed`, read back from status |
 | Current map and no-go zones | ✅ (camera entity; last cleaning path shown when map coordinates match) |

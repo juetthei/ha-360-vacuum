@@ -54,3 +54,40 @@ class LocateTest(unittest.TestCase):
             api.send_cmd.assert_awaited_once_with("upstairs", "21020", {"ctrlCode": 3010})
 
         asyncio.run(check())
+
+
+class VolumeTest(unittest.TestCase):
+    def test_volume_level_maps_to_percent(self):
+        from custom_components.vacuum_360.number import Robot360Volume
+        volume = Robot360Volume.__new__(Robot360Volume)
+        volume.coordinator = type("Coordinator", (), {"data": {"vol": 1}})()
+        self.assertEqual(volume.native_value, 10)
+        volume.coordinator.data = {"vol": 11}
+        self.assertIsNone(volume.native_value)
+
+    def test_sets_only_valid_volume_levels(self):
+        from custom_components.vacuum_360.api import Api360Error
+        from custom_components.vacuum_360.number import Robot360Volume
+
+        async def check():
+            api = Api360(None, "qid", "sid")
+            api.send_cmd = AsyncMock()
+            await api.set_volume("upstairs", 3)
+            api.send_cmd.assert_awaited_once_with(
+                "upstairs", "21024", {"cmd": "setVolume", "value": 3})
+            for bad in (-1, 11, 2.5):
+                with self.assertRaises(Api360Error):
+                    await api.set_volume("upstairs", bad)
+
+            volume = Robot360Volume.__new__(Robot360Volume)
+            volume.coordinator = type("Coordinator", (), {
+                "sn": "upstairs", "api": type("Api", (), {"set_volume": AsyncMock()})(),
+                "async_request_refresh": AsyncMock(),
+            })()
+            with self.assertRaises(HomeAssistantError):
+                await volume.async_set_native_value(25)
+            volume.coordinator.api.set_volume.assert_not_awaited()
+            await volume.async_set_native_value(30)
+            volume.coordinator.api.set_volume.assert_awaited_once_with("upstairs", 3)
+
+        asyncio.run(check())

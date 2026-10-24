@@ -8,7 +8,7 @@ from botslab360.exceptions import ApiError
 from botslab360.protocol import PushClient
 
 from .const import (
-    API_CMD, API_DEVICES, DEV_TYPE, INFO_FAN_SPEED, INFO_LOCATE, INFO_START, INFO_RETURN, INFO_PAUSE, INFO_STATUS,
+    API_CMD, API_DEVICES, DEV_TYPE, INFO_FAN_SPEED, INFO_LOCATE, INFO_SETTINGS, INFO_START, INFO_RETURN, INFO_PAUSE, INFO_STATUS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -210,6 +210,12 @@ class Api360:
 
     async def locate(self, sn: str) -> None:
         await self.send_cmd(sn, INFO_LOCATE, {"ctrlCode": 3010})
+
+    async def set_volume(self, sn: str, level: int) -> None:
+        # 21024 trägt auch Neustart und Karte löschen: nur exakt setVolume mit 0–10 senden.
+        if not isinstance(level, int) or not 0 <= level <= 10:
+            raise Api360Error(f"Ungültige Lautstärkestufe: {level}")
+        await self.send_cmd(sn, INFO_SETTINGS, {"cmd": "setVolume", "value": level})
 
     async def get_status(self, sn: str) -> dict:
         if not self.pushkey:

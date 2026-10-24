@@ -13,7 +13,7 @@ from .zones import SERVICE_CLEAN_ZONE, SERVICE_SCHEMA, async_clean_zone
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["vacuum", "sensor", "camera"]
+PLATFORMS = ["vacuum", "sensor", "camera", "number"]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

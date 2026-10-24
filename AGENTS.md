@@ -343,17 +343,20 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   `vacuum-commands`. Am Gerät noch nicht ausgelöst.
 - Lautstärke laut `stonegray/360smartai/infoType_fields.md`: `21024` mit
   `{"cmd":"setVolume","value":<int>}`. Status `20001` meldet `vol` (beide
-  Geräte `1`). Wertebereich unbekannt; **nicht implementiert**. `21024`
-  trägt auch `reboot` und `cancleMap` (Karte löschen) – keine Werte raten,
-  erst Skala aus der App klären.
+  Geräte `1`). Die App zeigte dabei 10 % und bietet 10-%-Schritte an
+  (Screenshot vom Nutzer, 2026-10-24) → Skala `vol` 0–10 = 0–100 %.
+- Ab v1.8.0: `number.<robot>_lautstarke` (0–100 %, Schritt 10). `set_volume`
+  sendet nur ganze Stufen 0–10 mit exakt `setVolume`, weil `21024` auch
+  `reboot` und `cancleMap` (Karte löschen) trägt. In beiden Detailansichten
+  als Tile mit Schieberegler. Am Gerät noch nicht gesetzt.
 
 ## Detailansicht unten (Stand 2026-10-24)
 
 - Subview `robot-unten` (gleiches `grid-layout` wie oben, Pi-Kachel
   „Robot: unten“ navigiert dorthin). Entities: `vacuum.360_robot_unten`,
   `sensor.360_robot_batterie`, `camera.360_robot_karte`. Keine Treppensperre.
-- Platzhalter ohne Aktion: Küche, Flur, Esszimmer, Wohnzimmer; Bad separat
-  unter „Gesondert (Sperrzone)“. Zonen werden später eingemessen.
+- Platzhalter ohne Aktion: Küche, Flur, Esszimmer, Wohnzimmer. Zonen werden
+  später eingemessen. Das Bad (in Sperrzone) bekommt auf Wunsch keinen Knopf.
 - Aktive Karte unten: feste `mapId` (Wert im Config-Entry), zwei `forbid`-Rechtecke. Das Bad
   liegt laut Nutzer in einer Sperrzone; eine Zonenreinigung dort ist bei
   aktiver Sperre nicht zu erwarten und ein Schreibbefehl für Sperrzonen ist
