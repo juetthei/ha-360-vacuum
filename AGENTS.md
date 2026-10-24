@@ -308,6 +308,12 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   auf. Nach dem HA-Neustart: HTTP 200, Treppensperren-Sensor `safe` und
   oberer Roboter `docked`.
   Ein echter Zonenstart bleibt ungetestet; kein Befehl wurde ausgelöst.
+- 2026-10-24: Der Nutzer startete „Bad oben“ über den HA-Knopf; die
+  Bereichsreinigung funktionierte. Damit ist `clean_zone` mit einem
+  einzelnen `normal`-Rechteck am S6 bestätigt. Mehrteilige Flächen und
+  `depth` sind über HA noch nicht gestartet worden.
+- Die README beschreibt das Erfassen (App-Fahrt starten, Karte lesen,
+  Storage-Datei ergänzen) und das `map_guards`-Format mit Beispielwerten.
 - Stand 2026-10-24: Während einer vom Nutzer in der App gestarteten
   Büro-Reinigung lieferte die aktive Karte (`mapId` unverändert) neben der
   Treppensperre genau ein `normal`-Rechteck `rect2` (ca. 3,3 × 4,2 m, ohne

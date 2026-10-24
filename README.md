@@ -37,7 +37,7 @@ Likely compatible (same cloud API, untested):
 | Status (cleaning / docked / paused / returning) | ✅ |
 | Multiple robots (same account) | ✅ |
 | Real-time status via TCP push | 🔜 planned |
-| Saved rectangular zone cleaning | ⚠️ experimental; confirmed map and stair zone required before start |
+| Saved rectangular zone cleaning | ✅ verified on S6 with a single rectangle; requires a map guard |
 
 ### Entities
 
@@ -50,12 +50,8 @@ Each robot gets one device with vacuum, battery, and map entities:
 | `camera.<robot_name>_karte` | Active floor plan with no-go zones in red; last route when coordinates match |
 | `sensor.<robot_name>_treppensperre` | `safe`, `zone_missing`, `wrong_map` or `check_failed` when a map guard is configured |
 
-Saved cleaning areas can contain one or several rectangles. Start one with
-`vacuum_360.clean_zone` and its `zone_id`; all rectangles in that area are sent
-in one command. The integration checks the active map, the configured no-go
-zone and the robot's idle/docked status before sending the command. The command
-format has been checked against the 360 app and mocked tests; a real zone start
-has not yet been performed with this integration.
+Saved cleaning areas (e.g. "Kitchen", "Bathroom") are started with
+`vacuum_360.clean_zone`; see [Saved Cleaning Areas](#saved-cleaning-areas).
 
 > **Upgrading from 1.0.x on Home Assistant 2026.9 or newer:** battery used to be
 > the `battery_level` attribute of the vacuum entity. Home Assistant 2026.9
@@ -160,6 +156,129 @@ adb logcat | grep MyPushMessageListener
 2. Search for **360 Vacuum Robot**
 3. Enter your **QID**, **SID**, and **push key**
 4. Click Submit — the integration will discover all robots on your account automatically
+
+---
+
+## Saved Cleaning Areas
+
+The S6 has no room segmentation that Home Assistant could use, but the app can
+clean freely drawn rectangles. This integration replays such rectangles on
+demand, so a dashboard button can clean one room.
+
+### How it works
+
+- An **area** is one rectangle or a group of rectangles (e.g. an L-shaped
+  hallway) on one specific robot map. Coordinates are millimetres in the
+  robot's map frame, exactly as the robot reports them.
+- `vacuum_360.clean_zone` sends all rectangles of an area in **one** job
+  (`21023` area list + `21005 reAppointClean` in a `30000` batch, as the app
+  does). The cleaning mode recorded by the app (`normal` or `depth`) is kept.
+- Before sending, the integration reloads the active map and refuses to start
+  if the map ID changed, a guarded no-go zone is missing, the robot is not
+  docked/idle, or a rectangle is malformed. It never falls back to a full
+  cleaning.
+- A new map (re-mapping) gets a new map ID; saved areas of the old map are then
+  refused instead of being cleaned in the wrong place.
+- Rectangles inside a no-go zone are not cleaned — the no-go zone wins.
+
+### Recording an area
+
+There is no drawing UI in Home Assistant yet. Areas are taken from the app:
+
+1. In the 360 app, open area cleaning, draw the rectangle(s) for one room and
+   **start** the cleaning. Drawn but unsent rectangles stay on the phone.
+2. A few seconds after the start, the active map reports the rectangles. The
+   camera entity draws them blue. Read their coordinates, e.g. from the
+   Home Assistant container:
+
+   ```python
+   map_data = await api.get_current_map(serial)   # Api360 from this integration
+   print(map_data["mapId"], [(a["id"], a["name"], a["active"], a["vertexs"])
+                             for a in map_data["area"]])
+   ```
+
+3. Add the area to `<config>/.storage/vacuum_360_saved_zones` (create the file
+   if needed). Areas are read on every service call; no restart is required.
+
+   ```json
+   {
+     "version": 1,
+     "minor_version": 1,
+     "key": "vacuum_360_saved_zones",
+     "data": {
+       "zones": [
+         {
+           "id": "kitchen",
+           "name": "Kitchen",
+           "sn": "360TY0000000000",
+           "map_id": 1234567890,
+           "vertices": [[-1000, -3000], [-4000, -3000], [-4000, -500], [-1000, -500]],
+           "active": "normal",
+           "source_area_id": 2,
+           "source_area_name": "rect2",
+           "confirmed_by_user": true
+         },
+         {
+           "id": "hallway",
+           "name": "Hallway",
+           "sn": "360TY0000000000",
+           "map_id": 1234567890,
+           "areas": [
+             {"vertices": [[0, -4700], [-3900, -4700], [-3900, -3300], [0, -3300]],
+              "active": "depth", "source_area_id": 3, "source_area_name": "rect3"},
+             {"vertices": [[-400, -8300], [-1800, -8300], [-1800, -4700], [-400, -4700]],
+              "active": "depth", "source_area_id": 4, "source_area_name": "rect4"}
+           ],
+           "confirmed_by_user": true
+         }
+       ]
+     }
+   }
+   ```
+
+   Only set `confirmed_by_user` after checking that the robot actually cleaned
+   that room. `source_area_id` values must be unique within one area.
+
+### Map guard (required)
+
+`clean_zone` and `vacuum.start` only run for robots with a **map guard**: the
+expected map ID plus the no-go zones that must still exist (e.g. the stair
+zone). It is stored in the config entry options (`map_guards`, keyed by serial
+number; no UI yet, edit while Home Assistant is stopped):
+
+```json
+"map_guards": {
+  "360TY0000000000": {
+    "name": "Sperrzonen",
+    "map_id": 1234567890,
+    "areas": [
+      [[-5500, -8300], [-7600, -8300], [-7600, -5700], [-5500, -5700]],
+      [[-5200, -5700], [-7600, -5700], [-7600, -4800], [-5200, -4800]]
+    ]
+  }
+}
+```
+
+A single zone can also be given as `"vertices": [...]`. Each listed zone must be
+present as a forbidden rectangle (a larger one covering it also counts). The
+guard adds a sensor named after `name` (default `Treppensperre`) that checks
+the map every five minutes. The guard only covers starts from Home Assistant;
+the app, the robot's button and app schedules are not checked.
+
+### Dashboard button
+
+```yaml
+type: button
+name: Kitchen
+icon: mdi:stove
+tap_action:
+  action: perform-action
+  perform_action: vacuum_360.clean_zone
+  data:
+    zone_id: kitchen
+  confirmation:
+    text: Clean the kitchen now?
+```
 
 ---
 
