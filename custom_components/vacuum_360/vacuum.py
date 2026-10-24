@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import Api360Error
-from .const import CONF_BLOCKED_START_SNS, CONF_MAP_GUARDS, DOMAIN, MODE_MAP
+from .const import CONF_BLOCKED_START_SNS, CONF_MAP_GUARDS, DOMAIN, FAN_SPEEDS, MODE_MAP
 from .coordinator import Robot360Coordinator
 from .map_guard import map_guard_state
 
@@ -24,6 +24,7 @@ _FEATURES = (
     | VacuumEntityFeature.RETURN_HOME
     | VacuumEntityFeature.PAUSE
     | VacuumEntityFeature.STATE
+    | VacuumEntityFeature.FAN_SPEED
 )
 
 _ACTIVITY_MAP: dict[str, VacuumActivity] = {
@@ -55,6 +56,7 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
     _attr_supported_features = _FEATURES
     _attr_has_entity_name = True
     _attr_name = None
+    _attr_fan_speed_list = list(FAN_SPEEDS)
 
     def __init__(self, coordinator: Robot360Coordinator, start_blocked: bool = False,
                  map_guard: dict | None = None) -> None:
@@ -96,6 +98,10 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
 
         return None
 
+    @property
+    def fan_speed(self) -> str | None:
+        mode = (self.coordinator.data or {}).get("workNoisy")
+        return next((name for name, value in FAN_SPEEDS.items() if value == mode), None)
 
     def _handle_coordinator_update(self) -> None:
         if self._optimistic_cycles_left > 0:
@@ -135,4 +141,10 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
     async def async_pause(self) -> None:
         self._set_optimistic(VacuumActivity.PAUSED)
         await self.coordinator.api.pause(self.coordinator.sn)
+        await self.coordinator.async_request_refresh()
+
+    async def async_set_fan_speed(self, fan_speed: str, **kwargs) -> None:
+        if fan_speed not in FAN_SPEEDS:
+            raise HomeAssistantError(f"Unbekannte Saugstärke: {fan_speed}")
+        await self.coordinator.api.set_fan_speed(self.coordinator.sn, FAN_SPEEDS[fan_speed])
         await self.coordinator.async_request_refresh()

@@ -320,6 +320,22 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   als `kinderzimmer_oben` gespeichert; es ragt nur ca. 20 cm in die erste
   Flur-Teilfläche (Türbereich). Knopf „Kinderzimmer“ ist aktiv.
 
+## Saugstärke (ab v1.6.0)
+
+- Der Status `20001` enthält `workNoisy` (live gelesen: beide Geräte
+  `strong`) und `windPower` (dabei `0`). Die Vacuum-Entity zeigt `workNoisy`
+  als `fan_speed`: `quiet` → Leise, `auto` → Standard, `strong` → Power.
+  Unbekannte Werte (z. B. `max` aus der Raum-UI) ergeben `None`.
+- Setzen über `21022` mit `{"cmd": "quiet"|"auto"|"strong"}` laut
+  `TA2k/ioBroker.botslab360/lib/china.js`. Die Saugstärke gilt global für
+  den Roboter (auch für App-Starts), nicht pro Zone.
+- Stand 2026-10-24: 21 Mocktests grün im HA-Container, v1.6.0 auf dem Zielsystem
+  (Backup `vacuum_360-v1.5.0-*.tgz` neben `config/`). In `robot-oben`
+  stehen drei Knöpfe „Saugstärke“ über den Bereichen; der aktive Knopf wird
+  per card-mod-Template eingefärbt. Der Befehl `21022` wurde noch nicht an
+  ein Gerät gesendet; Wirkung erst nach erstem Knopfdruck per Statusabfrage
+  bestätigen.
+
 ## Vorübergehende Startsperre für gefährdete Etagen
 
 - Ab v1.3.1 sperrt die Config-Entry-Option `blocked_start_sns` (Liste von
