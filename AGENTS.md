@@ -348,7 +348,8 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 - Ab v1.8.0: `number.<robot>_lautstarke` (0–100 %, Schritt 10). `set_volume`
   sendet nur ganze Stufen 0–10 mit exakt `setVolume`, weil `21024` auch
   `reboot` und `cancleMap` (Karte löschen) trägt. In beiden Detailansichten
-  als Tile mit Schieberegler. Am Gerät noch nicht gesetzt.
+  als kleines Tile ohne Feature in der Statuszeile (oben: Akku,
+  Treppensperre, Lautstärke); Einstellen per Tippen im Detaildialog. Am Gerät noch nicht gesetzt.
 
 ## Detailansicht unten (Stand 2026-10-24)
 
