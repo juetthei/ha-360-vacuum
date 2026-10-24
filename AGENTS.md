@@ -280,10 +280,10 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   ersten Nutzer-Test Treppe physisch schützen. Die bei der App-Bereichsreinigung
   beobachteten Modi `sweep` und `reAppointClean` werden als Reinigung angezeigt.
 - Die Pi-Kachel oben navigiert zur Lovelace-Subview `robot-oben`. Darin sind
-  Schlafzimmer, Flur und Bad als Knöpfe aktiv (Büro seit 2026-10-24).
-  Kinderzimmer bleibt nicht startbarer Platzhalter. Die aktuelle `normal`-Fläche wird auf der
-  Kamerakarte blau gezeichnet, `forbid` bleibt rot. Für das Kinderzimmer
-  zuerst echte Rechtecke auf der aktiven Karte erfassen; keine Koordinaten erfinden.
+  Schlafzimmer, Flur, Bad, Büro und Kinderzimmer als Knöpfe aktiv
+  (Büro und Kinderzimmer seit 2026-10-24). Die aktuelle `normal`-Fläche wird auf der
+  Kamerakarte blau gezeichnet, `forbid` bleibt rot. Neue Zonen nur aus
+  echten Rechtecken der aktiven Karte erfassen; keine Koordinaten erfinden.
 
 - Stand 2026-10-23: Der Nutzer bestätigte „Bad oben“ anhand der zuletzt
   abgeschlossenen Fahrt. Alle 757 Fahrspurpunkte lagen im damals aktiven
@@ -313,7 +313,9 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   Der Büro-Knopf in `robot-oben` ruft `clean_zone` mit `buero_oben` auf.
   Lovelace-Änderungen in `.storage/lovelace` greifen erst nach HA-Neustart;
   die Zonendatei wird dagegen bei jedem Dienstaufruf neu geladen.
-  Kinderzimmer bleibt Platzhalter.
+- Ebenso wurde während der Kinderzimmer-Reinigung `rect2` (ca. 2,6 × 3,5 m)
+  als `kinderzimmer_oben` gespeichert; es ragt nur ca. 20 cm in die erste
+  Flur-Teilfläche (Türbereich). Knopf „Kinderzimmer“ ist aktiv.
 
 ## Vorübergehende Startsperre für gefährdete Etagen
 
