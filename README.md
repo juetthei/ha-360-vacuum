@@ -28,6 +28,7 @@ Likely compatible (same cloud API, untested):
 | Pause | ✅ |
 | Return to base / Stop | ✅ |
 | Battery level | ✅ (separate sensor entity) |
+| Locate (robot plays a sound) | ✅ (`21020`, command from `botslab360`) |
 | Suction power (Leise / Standard / Power) | ⚠️ experimental; `vacuum.set_fan_speed`, read back from status |
 | Current map and no-go zones | ✅ (camera entity; last cleaning path shown when map coordinates match) |
 | Guard a known no-go zone | ✅ (5-minute map check, sensor state and live check before HA start when configured) |
@@ -43,7 +44,7 @@ Each robot gets one device with vacuum, battery, and map entities:
 
 | Entity | Description |
 |--------|-------------|
-| `vacuum.<robot_name>` | Status and controls (start / pause / return to base / stop / fan speed) |
+| `vacuum.<robot_name>` | Status and controls (start / pause / return to base / stop / fan speed / locate) |
 | `sensor.<robot_name>_battery` | Battery level in % |
 | `camera.<robot_name>_karte` | Active floor plan with no-go zones in red; last route when coordinates match |
 | `sensor.<robot_name>_treppensperre` | `safe`, `zone_missing`, `wrong_map` or `check_failed` when a map guard is configured |

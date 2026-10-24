@@ -8,7 +8,7 @@ from botslab360.exceptions import ApiError
 from botslab360.protocol import PushClient
 
 from .const import (
-    API_CMD, API_DEVICES, DEV_TYPE, INFO_FAN_SPEED, INFO_START, INFO_RETURN, INFO_PAUSE, INFO_STATUS,
+    API_CMD, API_DEVICES, DEV_TYPE, INFO_FAN_SPEED, INFO_LOCATE, INFO_START, INFO_RETURN, INFO_PAUSE, INFO_STATUS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -207,6 +207,9 @@ class Api360:
 
     async def set_fan_speed(self, sn: str, mode: str) -> None:
         await self.send_cmd(sn, INFO_FAN_SPEED, {"cmd": mode})
+
+    async def locate(self, sn: str) -> None:
+        await self.send_cmd(sn, INFO_LOCATE, {"ctrlCode": 3010})
 
     async def get_status(self, sn: str) -> dict:
         if not self.pushkey:

@@ -25,6 +25,7 @@ _FEATURES = (
     | VacuumEntityFeature.PAUSE
     | VacuumEntityFeature.STATE
     | VacuumEntityFeature.FAN_SPEED
+    | VacuumEntityFeature.LOCATE
 )
 
 _ACTIVITY_MAP: dict[str, VacuumActivity] = {
@@ -148,3 +149,6 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
             raise HomeAssistantError(f"Unbekannte Saugstärke: {fan_speed}")
         await self.coordinator.api.set_fan_speed(self.coordinator.sn, FAN_SPEEDS[fan_speed])
         await self.coordinator.async_request_refresh()
+
+    async def async_locate(self, **kwargs) -> None:
+        await self.coordinator.api.locate(self.coordinator.sn)

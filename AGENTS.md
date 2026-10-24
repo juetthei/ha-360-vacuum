@@ -336,6 +336,32 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   ein Gerät gesendet; Wirkung erst nach erstem Knopfdruck per Statusabfrage
   bestätigen.
 
+## Ortung und Lautstärke (ab v1.7.0)
+
+- `vacuum.locate` sendet `21020` mit `{"ctrlCode":3010}` ohne Task-ID, wie
+  `botslab360.commands.LOCATE`. Beide Detail-Kacheln haben `locate` in
+  `vacuum-commands`. Am Gerät noch nicht ausgelöst.
+- Lautstärke laut `stonegray/360smartai/infoType_fields.md`: `21024` mit
+  `{"cmd":"setVolume","value":<int>}`. Status `20001` meldet `vol` (beide
+  Geräte `1`). Wertebereich unbekannt; **nicht implementiert**. `21024`
+  trägt auch `reboot` und `cancleMap` (Karte löschen) – keine Werte raten,
+  erst Skala aus der App klären.
+
+## Detailansicht unten (Stand 2026-10-24)
+
+- Subview `robot-unten` (gleiches `grid-layout` wie oben, Pi-Kachel
+  „Robot: unten“ navigiert dorthin). Entities: `vacuum.360_robot_unten`,
+  `sensor.360_robot_batterie`, `camera.360_robot_karte`. Keine Treppensperre.
+- Platzhalter ohne Aktion: Küche, Flur, Esszimmer, Wohnzimmer; Bad separat
+  unter „Gesondert (Sperrzone)“. Zonen werden später eingemessen.
+- Aktive Karte unten: feste `mapId` (Wert im Config-Entry), zwei `forbid`-Rechtecke. Das Bad
+  liegt laut Nutzer in einer Sperrzone; eine Zonenreinigung dort ist bei
+  aktiver Sperre nicht zu erwarten und ein Schreibbefehl für Sperrzonen ist
+  nicht verifiziert.
+- `clean_zone` verlangt derzeit für den Roboter einen `map_guards`-Eintrag;
+  unten gibt es keinen, der Dienst würde dort verweigern. Vor dem
+  Freischalten mit dem Nutzer klären, welche Prüfung unten gelten soll.
+
 ## Vorübergehende Startsperre für gefährdete Etagen
 
 - Ab v1.3.1 sperrt die Config-Entry-Option `blocked_start_sns` (Liste von

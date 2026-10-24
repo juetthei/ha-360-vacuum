@@ -43,3 +43,14 @@ class FanSpeedTest(unittest.TestCase):
             api.set_fan_speed.assert_awaited_once_with("upstairs", "quiet")
 
         asyncio.run(check())
+
+
+class LocateTest(unittest.TestCase):
+    def test_locate_uses_library_command(self):
+        async def check():
+            api = Api360(None, "qid", "sid")
+            api.send_cmd = AsyncMock()
+            await api.locate("upstairs")
+            api.send_cmd.assert_awaited_once_with("upstairs", "21020", {"ctrlCode": 3010})
+
+        asyncio.run(check())
