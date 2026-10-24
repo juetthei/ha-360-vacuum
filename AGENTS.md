@@ -280,9 +280,9 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   ersten Nutzer-Test Treppe physisch schützen. Die bei der App-Bereichsreinigung
   beobachteten Modi `sweep` und `reAppointClean` werden als Reinigung angezeigt.
 - Die Pi-Kachel oben navigiert zur Lovelace-Subview `robot-oben`. Darin sind
-  Schlafzimmer, Flur und Bad als Knöpfe aktiv. Büro und Kinderzimmer bleiben
-  nicht startbare Platzhalter. Die aktuelle `normal`-Fläche wird auf der
-  Kamerakarte blau gezeichnet, `forbid` bleibt rot. Für Büro und Kinderzimmer
+  Schlafzimmer, Flur und Bad als Knöpfe aktiv (Büro seit 2026-10-24).
+  Kinderzimmer bleibt nicht startbarer Platzhalter. Die aktuelle `normal`-Fläche wird auf der
+  Kamerakarte blau gezeichnet, `forbid` bleibt rot. Für das Kinderzimmer
   zuerst echte Rechtecke auf der aktiven Karte erfassen; keine Koordinaten erfinden.
 
 - Stand 2026-10-23: Der Nutzer bestätigte „Bad oben“ anhand der zuletzt
@@ -305,6 +305,15 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   auf. Nach dem HA-Neustart: HTTP 200, Treppensperren-Sensor `safe` und
   oberer Roboter `docked`.
   Ein echter Zonenstart bleibt ungetestet; kein Befehl wurde ausgelöst.
+- Stand 2026-10-24: Während einer vom Nutzer in der App gestarteten
+  Büro-Reinigung lieferte die aktive Karte (`mapId` unverändert) neben der
+  Treppensperre genau ein `normal`-Rechteck `rect2` (ca. 3,3 × 4,2 m, ohne
+  Überlappung mit den anderen Zonen). Es liegt als `buero_oben` in der
+  privaten Zonendatei (`confirmed_by_user`, `observed_after_run: false`).
+  Der Büro-Knopf in `robot-oben` ruft `clean_zone` mit `buero_oben` auf.
+  Lovelace-Änderungen in `.storage/lovelace` greifen erst nach HA-Neustart;
+  die Zonendatei wird dagegen bei jedem Dienstaufruf neu geladen.
+  Kinderzimmer bleibt Platzhalter.
 
 ## Vorübergehende Startsperre für gefährdete Etagen
 
