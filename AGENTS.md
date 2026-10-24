@@ -340,7 +340,8 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 
 - `vacuum.locate` sendet `21020` mit `{"ctrlCode":3010}` ohne Task-ID, wie
   `botslab360.commands.LOCATE`. Beide Detail-Kacheln haben `locate` in
-  `vacuum-commands`. Am Gerät noch nicht ausgelöst.
+  `vacuum-commands`. Am 2026-10-24 auf Nutzerwunsch über `Api360.locate`
+  an den oberen S6 gesendet: `errno 0`, der Roboter meldete sich hörbar.
 - Lautstärke laut `stonegray/360smartai/infoType_fields.md`: `21024` mit
   `{"cmd":"setVolume","value":<int>}`. Status `20001` meldet `vol` (beide
   Geräte `1`). Die App zeigte dabei 10 % und bietet 10-%-Schritte an
