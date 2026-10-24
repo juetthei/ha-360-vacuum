@@ -30,7 +30,7 @@ Likely compatible (same cloud API, untested):
 | Battery level | ✅ (separate sensor entity) |
 | Volume (0–100 % in 10 % steps) | ✅ (`number` entity, `21024 setVolume`, verified on S6) |
 | Locate (robot plays a sound) | ✅ (`21020`, verified on S6) |
-| Suction power (Leise / Standard / Power) | ⚠️ experimental; `vacuum.set_fan_speed`, read back from status |
+| Suction power (Leise / Standard / Power) | ✅ (`vacuum.set_fan_speed`, `21022`, verified on S6) |
 | Current map and no-go zones | ✅ (camera entity; last cleaning path shown when map coordinates match) |
 | Guard a known no-go zone | ✅ (5-minute map check, sensor state and live check before HA start when configured) |
 | Create no-go zones in Home Assistant | 🔜 planned; requires verified device write command and readback |

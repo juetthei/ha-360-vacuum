@@ -332,9 +332,9 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 - Stand 2026-10-24: 21 Mocktests grün im HA-Container, v1.6.0 auf dem Zielsystem
   (Backup `vacuum_360-v1.5.0-*.tgz` neben `config/`). In `robot-oben`
   stehen drei Knöpfe „Saugstärke“ über den Bereichen; der aktive Knopf wird
-  per card-mod-Template eingefärbt. Der Befehl `21022` wurde noch nicht an
-  ein Gerät gesendet; Wirkung erst nach erstem Knopfdruck per Statusabfrage
-  bestätigen.
+  per card-mod-Template eingefärbt. Am 2026-10-24 vom Nutzer am Gerät
+  bestätigt (Umschalten über HA wirkt). Danach gelesen: unten `quiet`,
+  oben `strong`.
 
 ## Ortung und Lautstärke (ab v1.7.0)
 
