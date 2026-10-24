@@ -12,6 +12,9 @@ INFO_FAN_SPEED = "21022"
 INFO_LOCATE = "21020"
 INFO_SETTINGS = "21024"
 
+# In der App beobachtete Modi gezeichneter Reinigungsflächen
+CLEAN_AREA_MODES = ("normal", "depth")
+
 DEV_TYPE = "3"
 SCAN_INTERVAL = 30
 

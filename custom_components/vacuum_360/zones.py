@@ -9,7 +9,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.storage import Store
 
 from .api import Api360, Api360Error
-from .const import CONF_BLOCKED_START_SNS, CONF_MAP_GUARDS, DOMAIN
+from .const import CLEAN_AREA_MODES, CONF_BLOCKED_START_SNS, CONF_MAP_GUARDS, DOMAIN
 from .map_guard import map_guard_state
 
 SERVICE_CLEAN_ZONE = "clean_zone"
@@ -26,7 +26,7 @@ async def async_start_saved_zone(api: Api360, sn: str, zone: dict, guard: dict) 
     except Api360Error as exc:
         raise HomeAssistantError("Aktuelle Karte konnte nicht geprüft werden") from exc
     if map_guard_state(current, guard) != "safe":
-        raise HomeAssistantError("Treppensperre fehlt oder Karte hat gewechselt")
+        raise HomeAssistantError("Sperrzone fehlt oder Karte hat gewechselt")
     if str(current.get("mapId")) != str(zone.get("map_id")):
         raise HomeAssistantError("Gespeicherte Reinigungsfläche gehört zu einer anderen Karte")
     areas = zone.get("areas", [zone])
@@ -50,6 +50,8 @@ async def async_start_saved_zone(api: Api360, sn: str, zone: dict, guard: dict) 
         if (type(area_id) is not int or area_id in seen_ids
                 or not isinstance(area.get("source_area_name"), str)):
             raise ServiceValidationError("Reinigungsrechteck hat keine eindeutige Kennung")
+        if area.get("active", "normal") not in CLEAN_AREA_MODES:
+            raise ServiceValidationError("Unbekannter Modus der Reinigungsfläche")
         seen_ids.add(area_id)
     try:
         status = await api.get_status(sn)

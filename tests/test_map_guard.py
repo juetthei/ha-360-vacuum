@@ -85,3 +85,26 @@ class MapGuardTest(unittest.TestCase):
             api.start.assert_not_awaited()
 
         asyncio.run(check())
+
+
+DOWNSTAIRS = {
+    "name": "Sperrzonen",
+    "map_id": 1000000002,
+    "areas": [
+        [[-5564, -8300], [-7616, -8300], [-7616, -5674], [-5564, -5674]],
+        [[-5246, -5658], [-7597, -5658], [-7597, -4831], [-5246, -4831]],
+    ],
+}
+
+
+class MultiAreaGuardTest(unittest.TestCase):
+    def test_every_known_forbidden_area_is_required(self):
+        forbid = [{"active": "forbid", "vertexs": area} for area in DOWNSTAIRS["areas"]]
+        current = {"mapId": DOWNSTAIRS["map_id"], "area": forbid}
+        self.assertEqual(map_guard_state(current, DOWNSTAIRS), "safe")
+        self.assertEqual(map_guard_state({**current, "area": forbid[:1]}, DOWNSTAIRS),
+                         "zone_missing")
+        self.assertEqual(map_guard_state({**current, "area": [
+            forbid[0], {"active": "depth", "vertexs": DOWNSTAIRS["areas"][1]}]}, DOWNSTAIRS),
+            "zone_missing")
+        self.assertEqual(map_guard_state({**current, "mapId": 1}, DOWNSTAIRS), "wrong_map")

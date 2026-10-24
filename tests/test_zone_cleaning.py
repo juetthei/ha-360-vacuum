@@ -162,3 +162,30 @@ class ZoneCleaningTest(unittest.TestCase):
             api.clean_zone.assert_awaited_once_with("robot-1", ZONE["map_id"], ZONE)
 
         asyncio.run(check())
+
+
+class AreaModeTest(unittest.TestCase):
+    def test_depth_mode_is_sent_as_recorded(self):
+        async def check():
+            api = Api360(None, "qid", "sid")
+            api.send_cmd = AsyncMock(return_value={})
+            await api.clean_zone("robot-1", ZONE["map_id"], {**ZONE, "active": "depth"})
+            area = api.send_cmd.await_args.args[2]["cmds"][0]["data"]["extraAreas"][0]
+            self.assertEqual(area["active"], "depth")
+
+        asyncio.run(check())
+
+    def test_unknown_mode_is_refused_before_start(self):
+        async def check():
+            api = type("Api", (), {
+                "get_current_map": AsyncMock(return_value=CURRENT),
+                "get_status": AsyncMock(return_value={"mode": "charge"}),
+                "clean_zone": AsyncMock(),
+            })()
+            with self.assertRaises(ServiceValidationError):
+                await async_start_saved_zone(api, "robot-1", {**ZONE, "active": "forbid"}, GUARD)
+            api.clean_zone.assert_not_awaited()
+            await async_start_saved_zone(api, "robot-1", {**ZONE, "active": "depth"}, GUARD)
+            api.clean_zone.assert_awaited_once()
+
+        asyncio.run(check())

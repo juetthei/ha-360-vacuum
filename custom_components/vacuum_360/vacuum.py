@@ -124,9 +124,9 @@ class Robot360Vacuum(CoordinatorEntity[Robot360Coordinator], StateVacuumEntity):
                 current = await self.coordinator.api.get_current_map(self.coordinator.sn)
                 state = map_guard_state(current, self._map_guard)
             except (Api360Error, KeyError, TypeError, ValueError) as exc:
-                raise HomeAssistantError("Treppensperre konnte nicht geprüft werden") from exc
+                raise HomeAssistantError("Sperrzone konnte nicht geprüft werden") from exc
             if state != "safe":
-                raise HomeAssistantError(f"Start verweigert: Treppensperre {state}")
+                raise HomeAssistantError(f"Start verweigert: Sperrzone {state}")
         self._set_optimistic(VacuumActivity.CLEANING)
         await self.coordinator.api.start(self.coordinator.sn)
         await self.coordinator.async_request_refresh()

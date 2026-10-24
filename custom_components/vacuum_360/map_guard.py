@@ -1,4 +1,4 @@
-"""Check that a known forbidden area is still on the active map."""
+"""Check that known forbidden areas are still on the active map."""
 
 import logging
 from datetime import timedelta
@@ -16,12 +16,18 @@ def map_guard_state(current: dict, expected: dict) -> str:
     if str(current.get("mapId")) != str(expected["map_id"]):
         return "wrong_map"
 
-    wanted = expected["vertices"]
-    wanted_x = [point[0] for point in wanted]
-    wanted_y = [point[1] for point in wanted]
     areas = current.get("area")
     if not isinstance(areas, list):
         return "check_failed"
+    for wanted in expected.get("areas") or [expected["vertices"]]:
+        if not _forbid_area_covers(areas, wanted):
+            return "zone_missing"
+    return "safe"
+
+
+def _forbid_area_covers(areas: list, wanted: list) -> bool:
+    wanted_x = [point[0] for point in wanted]
+    wanted_y = [point[1] for point in wanted]
     for area in areas:
         if not isinstance(area, dict) or area.get("active") != "forbid":
             continue
@@ -40,8 +46,8 @@ def map_guard_state(current: dict, expected: dict) -> str:
             continue
         if (min(x_values) <= min(wanted_x) and max(x_values) >= max(wanted_x)
                 and min(y_values) <= min(wanted_y) and max(y_values) >= max(wanted_y)):
-            return "safe"
-    return "zone_missing"
+            return True
+    return False
 
 
 class Robot360MapGuardCoordinator(DataUpdateCoordinator[str]):

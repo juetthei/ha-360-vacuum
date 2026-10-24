@@ -180,7 +180,7 @@ class Api360:
         """Start cleaning all rectangles in one saved area on the active map."""
         areas = [{
             "vertexs": item["vertices"],
-            "active": "normal",
+            "active": item.get("active", "normal"),
             "name": item["source_area_name"],
             "tag": "",
             "id": item["source_area_id"],

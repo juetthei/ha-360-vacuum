@@ -46,6 +46,7 @@ class Robot360MapGuardSensor(CoordinatorEntity[Robot360MapGuardCoordinator], Sen
     def __init__(self, coordinator: Robot360MapGuardCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.robot.sn}_map_guard"
+        self._attr_name = coordinator.expected.get("name", "Treppensperre")
 
     @property
     def device_info(self) -> dict:
