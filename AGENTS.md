@@ -17,8 +17,10 @@ custom_components/vacuum_360/
 ├── __init__.py        Setup, async_setup_entry, async_unload_entry
 ├── api.py             API-Client (aiohttp), Commands, GetList
 ├── coordinator.py     DataUpdateCoordinator, 30s Polling via GetList
-├── vacuum.py          StateVacuumEntity, Start/Pause/Return/Stop
-├── sensor.py          Akku-Sensor (device_class battery)
+├── vacuum.py          StateVacuumEntity, Start/Pause/Return/Stop, Saugstärke, Ortung
+├── sensor.py          Akku-Sensor, Sensor Treppensperre/Sperrzonen (map_guards)
+├── number.py          Lautstärke (0–100 %, 10er-Schritte)
+├── services.yaml      Dienst vacuum_360.clean_zone
 ├── camera.py          Aktueller Grundriss + Sperrzonen, optionale letzte Fahrspur
 ├── map_guard.py       Bekannte Sperrfläche auf aktiver Karte prüfen
 ├── zones.py           Bestätigte Rechtecke gegen Live-Karte prüfen und starten
@@ -28,6 +30,7 @@ custom_components/vacuum_360/
 ├── strings.json
 └── translations/de.json, en.json
 dashboard_example.yaml  Lovelace-Karten (nur eingebaute HA-Karten)
+tests/                  Mocktests (brauchen Home Assistant)
 ```
 
 ## API-Details
@@ -44,6 +47,13 @@ dashboard_example.yaml  Lovelace-Karten (nur eingebaute HA-Karten)
 | Pause          | 21017    | `{"cmd":"pause"}`                             |
 | Fortsetzen     | 21017    | `{"cmd":"continue"}`                          |
 | Status abrufen | 20001    | —                                             |
+| Ortung         | 21020    | `{"ctrlCode":3010}`                           |
+| Saugstärke     | 21022    | `{"cmd":"quiet"\|"auto"\|"strong"}`            |
+| Lautstärke     | 21024    | `{"cmd":"setVolume","value":0–10}`            |
+| Zonenreinigung | 30000    | Sammelbefehl aus `21023` + `21005` (siehe unten) |
+
+Status und Karte kommen nicht in der HTTP-Antwort, sondern über den
+verschlüsselten Push-Kanal (siehe „Push-Status und Batterie“).
 
 ## Credentials extrahieren (Android + ADB)
 
@@ -66,10 +76,16 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
 
 ## Bekannte Offene Punkte
 
-- GetList-Response-Feldnamen unbekannt (verschiedene Firmware-Versionen) → flexibles Parsing eingebaut, Debug-Logging vorhanden
-- TCP-Push-Socket (47.254.151.104:443, AES-128-CBC) noch nicht implementiert → aktuell nur Polling
-- Auto-Login via passport.360.cn (DES-Encrypt) nicht implementiert (Captcha-Problem)
-- Karten-Entity via S3 nicht implementiert
+- GetList-Feldnamen können je nach Firmware abweichen → flexibles Parsing
+  mit Debug-Logging.
+- Auto-Login via passport.360.cn (DES-Encrypt) nicht implementiert
+  (Captcha-Problem). QID, SID und Push-Key kommen weiter per ADB.
+- Schreibbefehl für Sperrzonen nicht verifiziert → Sperrzonen nur in der App
+  anlegen, nicht per Probierbefehl an den Roboter.
+- Über HA noch nie echt gestartet: Zonen aus mehreren Rechtecken (z. B.
+  `flur_oben`) und Zonen im Modus `depth` (unten).
+- Erledigt: Push-Empfang (v1.2.0), Kartenanzeige aus der aktiven Karte
+  (v1.3.2), siehe die Abschnitte unten.
 
 ## HA-Kompatibilität
 
@@ -358,7 +374,7 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   als kleines Tile ohne Feature in der Statuszeile (oben: Akku,
   Treppensperre, Lautstärke); Einstellen per Tippen im Detaildialog.
 - Am 2026-10-24 oben am Gerät bestätigt: `set_volume(8)` → Status `vol: 8`,
-  Ortung hörbar lauter; `set_volume(1)` → `vol: 1`. Endstand wieder 10 %. Am Gerät noch nicht gesetzt.
+  Ortung hörbar lauter; `set_volume(1)` → `vol: 1`. Endstand wieder 10 %.
 
 ## Detailansicht unten (Stand 2026-10-24)
 
@@ -387,15 +403,19 @@ HA: Einstellungen → Integrationen → "360 Vacuum Robot" hinzufügen.
   aktiver Sperre nicht zu erwarten und ein Schreibbefehl für Sperrzonen ist
   nicht verifiziert.
 
-## Vorübergehende Startsperre für gefährdete Etagen
+## Statische Startsperre `blocked_start_sns` (v1.3.1, abgelöst)
 
+- Seit v1.3.5 übernimmt `map_guards` diese Aufgabe; die Liste ist auf dem
+  Zielsystem leer. Die Option existiert im Code weiter (`vacuum.py`,
+  `zones.py`) und kann für einen Roboter ohne Kartenprüfung genutzt werden.
 - Ab v1.3.1 sperrt die Config-Entry-Option `blocked_start_sns` (Liste von
   Geräte-Seriennummern) `vacuum.start` für ausgewählte Roboter. Die START-
   Fähigkeit wird bei diesen Entities ausgeblendet; `async_start` prüft
   zusätzlich vor jedem API-Aufruf und wirft einen HA-Fehler. Für andere
   Roboter bleiben Start und Status unverändert.
-- Auf dem Zielsystem ist der Zeitplan für den oberen Roboter per
-  `initial_state: false` abgeschaltet. Die Startsperre gilt nur für HA;
+- Damals wurde auf dem Zielsystem der HA-Zeitplan für den oberen Roboter
+  per `initial_state: false` abgeschaltet; ob das noch gilt, wurde seit der
+  Freigabe in v1.3.5 nicht erneut geprüft. Die Startsperre gilt nur für HA;
   App, Gerätetaste und herstellereigene Zeitpläne bleiben davon unabhängig.
   Vor einem erneuten Freigeben zuerst die aktuelle Karte, Treppensicherung
   und physischen Schutz prüfen.
