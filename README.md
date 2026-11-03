@@ -33,10 +33,10 @@ Likely compatible (same cloud API, untested):
 | Suction power (Leise / Standard / Power) | ✅ (`vacuum.set_fan_speed`, `21022`, verified on S6) |
 | Current map and no-go zones | ✅ (camera entity; last cleaning path shown when map coordinates match) |
 | Guard a known no-go zone | ✅ (5-minute map check, sensor state and live check before HA start when configured) |
-| Create no-go zones in Home Assistant | 🔜 planned; requires verified device write command and readback |
+| Create no-go zones | ➖ not supported — create them in the 360 app; HA displays and guards them |
 | Status (cleaning / docked / paused / returning) | ✅ |
 | Multiple robots (same account) | ✅ |
-| Real-time status via TCP push | 🔜 planned |
+| Status via encrypted push channel | ✅ (polled every 30 s) |
 | Saved rectangular zone cleaning | ✅ verified on S6 with a single rectangle; requires a map guard |
 
 ### Entities
@@ -388,7 +388,6 @@ Authentication uses cookies (`qid` + `sid`) obtained from the running app sessio
 Pull requests welcome — especially:
 - Confirmation of working models (please open an issue with your model name)
 - iOS credential extraction method
-- Real-time status via TCP push socket
 
 ---
 
